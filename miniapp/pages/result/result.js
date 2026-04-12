@@ -178,37 +178,52 @@ Page({
   /** 字号调整 */
   onFontSizeChange(e) {
     this.setData({ fontSize: e.detail.value })
-    this._applyAdjustments()
+    this._scheduleAdjust()
   },
 
   /** 行高调整 */
   onLineHeightChange(e) {
     this.setData({ lineHeight: e.detail.value })
-    this._applyAdjustments()
+    this._scheduleAdjust()
   },
 
   /** 段距调整 */
   onParagraphGapChange(e) {
     this.setData({ paragraphGap: e.detail.value })
-    this._applyAdjustments()
+    this._scheduleAdjust()
+  },
+
+  /**
+   * 防抖调度器：200ms 内多次滑动只执行一次 HTML 替换
+   * 
+   * 不使用 debounce 包装是因为 setTimeout 内部 this 指向不确定，
+   * 直接在方法内用箭头函数保持 this 上下文。
+   */
+  _scheduleAdjust() {
+    if (this._adjustTimer) clearTimeout(this._adjustTimer)
+    this._adjustTimer = setTimeout(() => {
+      this._doApplyAdjustments()
+    }, 200)
   },
 
   /** 应用快捷调整到 HTML（前端本地处理，不重调 AI） */
-  _applyAdjustments: debounce(function () {
+  _doApplyAdjustments() {
     let html = this.data.fullHtml
     if (!html) return
 
     const { fontSize, lineHeight, paragraphGap } = this.data
     const actualLineHeight = lineHeight / 10
-    // 替换字号
+    // 替换正文字号（不影响标题的字号）
     html = html.replace(/font-size:\s*\d+px/g, `font-size:${fontSize}px`)
     // 替换行高
     html = html.replace(/line-height:\s*[\d.]+/g, `line-height:${actualLineHeight}`)
     // 替换段落间距
     html = html.replace(/margin-bottom:\s*\d+px/g, `margin-bottom:${paragraphGap}px`)
+    // NOTE: margin:0 0 16px 格式也需要匹配
+    html = html.replace(/margin:\s*0\s+0\s+\d+px/g, `margin:0 0 ${paragraphGap}px`)
 
     this.setData({ previewHtml: html })
-  }, 200),
+  },
 
   /** 复制 HTML */
   onCopyHtml() {

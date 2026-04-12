@@ -12,7 +12,7 @@ HTML 清洗与生成模块
 借鉴 xiaohu-wechat-format 项目的微信兼容处理方案：
 - CJK 自动间距（中英文/数字间加空格）
 - 列表渲染使用 section + flexbox（而非 <ul>/<ol>）
-- 加粗标点修复（中文标点移到 <strong> 外部）
+- 加粗标点修复（中文标点移到 </strong> 外部）
 """
 import re
 import logging
@@ -193,24 +193,21 @@ def _clean_css(style: str) -> str:
     return style.strip()
 
 
-# ===== HTML 生成 =====
+# ===== HTML 生成（精美排版） =====
 
 def build_html_from_sections(
     sections: list[dict],
     theme: dict,
 ) -> str:
     """
-    根据结构化的 sections 和主题样式生成 HTML
+    根据结构化的 sections 和主题样式生成精美的内联样式 HTML
 
-    支持的 section type:
-    - title: 主标题 (h1)
-    - subtitle: 副标题 (h2)
-    - paragraph: 正文段落 (p)
-    - quote: 引用块 (blockquote)
-    - divider: 分隔线
-    - list: 列表（使用 flexbox section，微信兼容）
-    - callout: 高亮提示框
-    - dialogue: 对话气泡
+    设计原则（借鉴 xiaohu-wechat-format）：
+    - 所有样式必须内联（微信不支持 class/外联 CSS）
+    - 标题要有装饰感（下划线/色块/渐变）
+    - 段落用字间距和合理的行高提升阅读感
+    - 引用块和高亮框用背景 + 边框组合
+    - 全局容器设背景色和内边距
     """
     html_parts = []
     styles = theme.get("styles", {})
@@ -231,7 +228,7 @@ def build_html_from_sections(
         section_type = section.get("type", "paragraph")
         content = section.get("content", "")
 
-        # 文本处理管线：CJK 间距 → 加粗标点修复
+        # 文本处理管线：CJK 间距 + 加粗标点修复
         if content:
             content = add_cjk_spacing(content)
             content = fix_bold_punctuation(content)
@@ -242,99 +239,144 @@ def build_html_from_sections(
             for keyword in highlights:
                 content = content.replace(
                     keyword,
-                    f'<strong style="color:{accent_color}">{keyword}</strong>',
+                    f'<strong style="color:{accent_color};'
+                    f'font-weight:bold;">{keyword}</strong>',
                 )
 
         if section_type == "title":
+            # 主标题：居中 + 下方装饰色条
             html_parts.append(
+                f'<section style="text-align:center;margin:32px 0 24px;'
+                f'padding:0 16px;">'
                 f'<h1 style="color:{title_color};font-size:{title_font_size}px;'
-                f'font-weight:bold;text-align:center;margin:24px 0 16px;'
-                f'line-height:1.4;">{content}</h1>'
+                f'font-weight:bold;line-height:1.4;margin:0 0 12px;'
+                f'letter-spacing:1px;">{content}</h1>'
+                f'<section style="width:40px;height:3px;'
+                f'background:{accent_color};margin:0 auto;'
+                f'border-radius:2px;"></section></section>'
             )
 
         elif section_type == "subtitle":
+            # 副标题：左侧色块 + 渐变背景条
             html_parts.append(
-                f'<h2 style="color:{title_color};font-size:{body_font_size + 2}px;'
-                f'font-weight:bold;margin:20px 0 12px;padding-left:10px;'
-                f'border-left:3px solid {accent_color};">{content}</h2>'
+                f'<section style="margin:28px 0 16px;padding:10px 14px;'
+                f'border-left:4px solid {accent_color};'
+                f'background:linear-gradient(90deg,{quote_color},transparent);">'
+                f'<h2 style="color:{title_color};'
+                f'font-size:{body_font_size + 2}px;font-weight:bold;'
+                f'margin:0;line-height:1.5;letter-spacing:0.5px;">'
+                f'{content}</h2></section>'
             )
 
         elif section_type == "paragraph":
+            # 正文：首行缩进 + 字间距 + 合理段距
             html_parts.append(
                 f'<p style="color:{body_color};font-size:{body_font_size}px;'
-                f'line-height:{line_height};margin-bottom:16px;'
-                f'text-indent:2em;">{content}</p>'
+                f'line-height:{line_height};margin:0 0 16px;'
+                f'text-indent:2em;letter-spacing:0.5px;">{content}</p>'
             )
 
         elif section_type == "quote":
+            # 引用块：左边框 + 浅背景 + 引号装饰
             html_parts.append(
-                f'<blockquote style="background:{quote_color};'
-                f'border-left:3px solid {quote_border_color};'
-                f'padding:12px 16px;margin:16px 0;border-radius:4px;">'
-                f'<p style="color:#666;font-size:{body_font_size - 1}px;'
-                f'margin:0;line-height:{line_height};">{content}</p>'
-                f'</blockquote>'
+                f'<section style="margin:20px 0;padding:16px 20px 16px 18px;'
+                f'background:{quote_color};'
+                f'border-left:4px solid {quote_border_color};'
+                f'border-radius:0 8px 8px 0;">'
+                f'<section style="color:{quote_border_color};font-size:24px;'
+                f'font-weight:bold;line-height:1;margin-bottom:6px;">'
+                f'&#x201C;</section>'
+                f'<p style="color:#555;font-size:{body_font_size}px;'
+                f'line-height:{line_height};margin:0;font-style:italic;'
+                f'letter-spacing:0.5px;">{content}</p></section>'
             )
 
         elif section_type == "divider":
-            divider_text = "· · ·" if divider_style == "dots" else "———"
-            html_parts.append(
-                f'<p style="text-align:center;color:#ccc;margin:24px 0;'
-                f'letter-spacing:8px;">{divider_text}</p>'
-            )
+            # 分割线
+            if divider_style == "dots":
+                html_parts.append(
+                    f'<section style="text-align:center;margin:28px 0;'
+                    f'color:{accent_color};letter-spacing:12px;'
+                    f'font-size:14px;">&#x25CF; &#x25CF; &#x25CF;</section>'
+                )
+            else:
+                html_parts.append(
+                    f'<section style="margin:28px auto;width:30%;'
+                    f'height:1px;background:linear-gradient(90deg,'
+                    f'transparent,{accent_color},transparent);"></section>'
+                )
 
         elif section_type == "list":
-            # 使用 flexbox section 替代原生 <ul>，微信兼容
+            # flexbox section 替代原生 <ul>（微信兼容）
             items = section.get("items", [])
             if items:
                 li_parts = []
                 for item in items:
                     item = add_cjk_spacing(item)
                     li_parts.append(
-                        f'<section style="display:flex;align-items:flex-start;margin-bottom:8px;">'
-                        f'<section style="min-width:8px;width:8px;height:8px;'
-                        f'border-radius:50%;background:{accent_color};'
-                        f'margin-right:10px;margin-top:7px;flex-shrink:0;"></section>'
+                        f'<section style="display:flex;'
+                        f'align-items:flex-start;margin-bottom:10px;">'
+                        f'<section style="min-width:6px;width:6px;'
+                        f'height:6px;border-radius:50%;'
+                        f'background:{accent_color};margin-right:12px;'
+                        f'margin-top:8px;flex-shrink:0;"></section>'
                         f'<section style="flex:1;color:{body_color};'
-                        f'font-size:{body_font_size}px;line-height:{line_height};">'
-                        f'{item}</section></section>'
+                        f'font-size:{body_font_size}px;'
+                        f'line-height:{line_height};'
+                        f'letter-spacing:0.5px;">{item}</section>'
+                        f'</section>'
                     )
                 html_parts.append(
-                    f'<section style="margin:12px 0;">{"".join(li_parts)}</section>'
+                    f'<section style="margin:16px 0;padding-left:4px;">'
+                    f'{"".join(li_parts)}</section>'
                 )
 
         elif section_type == "callout":
-            # 高亮提示框（借鉴 xiaohu-wechat-format 的 callout 组件）
+            # 高亮提示框：带竖条标题的卡片
             callout_title = section.get("title", "")
             html_parts.append(
-                f'<section style="background:{quote_color};'
-                f'border-left:3px solid {accent_color};'
-                f'padding:16px;margin:16px 0;border-radius:4px;">'
+                f'<section style="margin:20px 0;padding:16px 18px;'
+                f'background:{quote_color};border-radius:8px;">'
+                f'<section style="display:flex;align-items:center;'
+                f'margin-bottom:10px;">'
+                f'<section style="width:4px;height:16px;'
+                f'background:{accent_color};border-radius:2px;'
+                f'margin-right:8px;"></section>'
                 f'<p style="font-weight:bold;color:{accent_color};'
-                f'font-size:{body_font_size}px;margin:0 0 8px 0;">'
-                f'{callout_title}</p>'
-                f'<p style="color:{body_color};font-size:{body_font_size - 1}px;'
-                f'line-height:{line_height};margin:0;">'
-                f'{content}</p></section>'
+                f'font-size:{body_font_size}px;margin:0;">'
+                f'{callout_title}</p></section>'
+                f'<p style="color:{body_color};'
+                f'font-size:{body_font_size - 1}px;'
+                f'line-height:{line_height};margin:0;'
+                f'letter-spacing:0.5px;">{content}</p></section>'
             )
 
         elif section_type == "dialogue":
-            # 对话气泡（适用于访谈/采访类文章）
+            # 对话气泡
             speaker = section.get("speaker", "")
-            # 偶数行靠左，奇数行靠右（简化处理）
             html_parts.append(
-                f'<section style="margin:8px 0;">'
-                f'<section style="display:flex;align-items:flex-start;gap:8px;">'
-                f'<section style="min-width:60px;font-size:{body_font_size - 1}px;'
-                f'color:{accent_color};font-weight:bold;line-height:{line_height};">'
+                f'<section style="margin:10px 0;">'
+                f'<section style="display:flex;align-items:flex-start;">'
+                f'<section style="min-width:56px;padding:4px 8px;'
+                f'font-size:{body_font_size - 2}px;color:{accent_color};'
+                f'font-weight:bold;background:{quote_color};'
+                f'border-radius:4px;text-align:center;'
+                f'margin-right:10px;flex-shrink:0;line-height:1.6;">'
                 f'{speaker}</section>'
                 f'<section style="flex:1;background:{quote_color};'
-                f'border-radius:8px;padding:10px 14px;'
+                f'border-radius:0 12px 12px 12px;padding:12px 16px;'
                 f'font-size:{body_font_size}px;color:{body_color};'
-                f'line-height:{line_height};">{content}</section>'
-                f'</section></section>'
+                f'line-height:{line_height};letter-spacing:0.5px;">'
+                f'{content}</section></section></section>'
             )
 
-    full_html = "\n".join(html_parts)
+    # 全局容器包裹：背景色 + 内边距
+    inner_html = "\n".join(html_parts)
+    full_html = (
+        f'<section style="background:{bg_color};padding:20px 16px;">'
+        f'{inner_html}'
+        f'</section>'
+    )
+
     # 最终清洗，确保微信兼容
     return sanitize_html_for_wechat(full_html)
