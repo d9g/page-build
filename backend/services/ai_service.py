@@ -26,7 +26,9 @@ PROVIDER_REGISTRY = {
     },
     "dashscope": {
         "name": "阿里百炼",
-        "api_url": "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions",
+        # Coding Plan 专属 Base URL（sk-sp-xxxxx Key 必须用这个）
+        # 通用按量付费 URL：https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions
+        "api_url": "https://coding.dashscope.aliyuncs.com/v1/chat/completions",
         "api_key_env": "DASHSCOPE_API_KEY",
     },
 }
