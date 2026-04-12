@@ -88,32 +88,58 @@ def parse_ai_response(ai_text: str) -> list[dict]:
         text = text[:-3]
     text = text.strip()
 
-    # 清理控制字符（换行符、制表符等在 JSON 字符串中需要转义）
-    # 但保留结构性的换行（用于格式化 JSON）
     try:
         sections = json.loads(text)
         if not isinstance(sections, list):
             raise ValueError("AI 返回的不是 JSON 数组")
         return sections
     except json.JSONDecodeError as e:
-        # 尝试修复常见问题：content 字段中的未转义字符
         logger.warning(f"AI JSON 解析失败，尝试修复: {e}")
         
-        # 方法1：用正则替换掉控制字符
-        import re
-        # 在 JSON 字符串值内部，替换未转义的换行符
-        fixed_text = re.sub(r'(?<!\\)\n(?=[^"]*"[^"]*(?:[^"]*"[^"]*)*$)', '\\n', text)
-        fixed_text = re.sub(r'(?<!\\)\t(?=[^"]*"[^"]*(?:[^"]*"[^"]*)*$)', '\\t', fixed_text)
+        # 方法：逐行构建 JSON 对象
+        # AI 返回的是 JSON 数组，但内部可能有问题
+        # 尝试提取每个 {...} 对象单独解析
         
-        try:
-            sections = json.loads(fixed_text)
-            if not isinstance(sections, list):
-                raise ValueError("AI 返回的不是 JSON 数组")
-            logger.info("JSON 修复成功")
+        import re
+        
+        # 提取所有 JSON 对象
+        pattern = r'\{[^{}]*"type"[^{}]*"content"[^{}]*\}'
+        objects = re.findall(pattern, text, re.DOTALL)
+        
+        if not objects:
+            # 尝试更宽松的匹配
+            pattern2 = r'\{"type":\s*"[^"]+",\s*"content":\s*"[^"]*"\}'
+            objects = re.findall(pattern2, text)
+        
+        sections = []
+        for obj_text in objects:
+            try:
+                # 清理控制字符
+                cleaned = obj_text.replace('\n', '\\n').replace('\t', '\\t').replace('\r', '\\r')
+                obj = json.loads(cleaned)
+                sections.append(obj)
+            except:
+                continue
+        
+        # 也尝试提取 divider 和 list 类型
+        divider_pattern = r'\{"type":\s*"divider"\}'
+        for obj_text in re.findall(divider_pattern, text):
+            sections.append({"type": "divider"})
+        
+        list_pattern = r'\{"type":\s*"list",\s*"items":\s*\[[^\]]*\]\}'
+        for obj_text in re.findall(list_pattern, text):
+            try:
+                obj = json.loads(obj_text)
+                sections.append(obj)
+            except:
+                continue
+        
+        if sections:
+            logger.info(f"JSON 修复成功，提取到 {len(sections)} 个区块")
             return sections
-        except json.JSONDecodeError as e2:
-            logger.error(f"AI JSON 解析失败（修复后仍失败）: {e2}\n原文: {text[:500]}")
-            raise ValueError("排版结果解析失败，请重试")
+        
+        logger.error(f"AI JSON 解析失败（无法修复）\n原文: {text[:500]}")
+        raise ValueError("排版结果解析失败，请重试")
 
 
 async def do_layout(content: str, theme_id: str = "default") -> dict:
