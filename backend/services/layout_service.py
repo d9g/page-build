@@ -3,7 +3,7 @@
 排版业务逻辑
 
 架构 v3.0：AI 返回 Markdown → mistune 渲染器 → 主题化内联样式 HTML
-支持多 AI 模型（智谱全系列 + 阿里百炼全系列）
+支持 provider + model 双维度选择 AI 模型
 """
 import json
 import re
@@ -108,22 +108,17 @@ def clean_markdown_output(ai_text: str) -> str:
 async def do_layout(
     content: str,
     theme_id: str = "default",
-    model_id: str = "glm-4-flash",
+    model: str = "glm-4-flash",
+    provider: str = "zhipu",
 ) -> dict:
     """
-    执行排版（v3.0 Markdown 架构 + 多模型支持）
-
-    流程：
-    1. 清理用户输入
-    2. 调用 AI 将纯文本转为 Markdown
-    3. 用 mistune + WechatRenderer 将 Markdown 转为主题化 HTML
-    4. 微信兼容性清洗
-    5. 返回结果
+    执行排版（v3.0 Markdown 架构 + provider/model 双维度）
 
     Args:
         content: 用户输入的文章原文
         theme_id: 主题 ID
-        model_id: AI 模型 ID（支持 glm-4-flash/glm-5/qwen-plus 等）
+        model: 模型名称（如 glm-5, qwen-max）
+        provider: 厂商 ID（zhipu / dashscope）
     """
     start_time = time.time()
 
@@ -138,12 +133,13 @@ async def do_layout(
 
     # 调用 AI（返回 Markdown）
     logger.info(
-        f"开始排版 | 字数: {len(content)} | 模型: {model_id} | Prompt: {prompt_version}"
+        f"开始排版 | 字数: {len(content)} | {provider}/{model} | Prompt: {prompt_version}"
     )
     response = await call_ai_model(
         system_prompt=system_prompt,
         user_content=user_prompt,
-        model_id=model_id,
+        model=model,
+        provider=provider,
     )
 
     ai_text = extract_content(response)
@@ -162,7 +158,7 @@ async def do_layout(
     process_time_ms = int((time.time() - start_time) * 1000)
     process_time_str = f"{process_time_ms / 1000:.1f}s"
 
-    logger.info(f"排版完成 | 耗时: {process_time_str} | 模型: {model_id}")
+    logger.info(f"排版完成 | 耗时: {process_time_str} | {provider}/{model}")
 
     return {
         "sections": [],
@@ -172,7 +168,7 @@ async def do_layout(
         "process_time": process_time_str,
         "process_time_ms": process_time_ms,
         "prompt_version": prompt_version,
-        "ai_model": model_id,
+        "ai_model": f"{provider}/{model}",
         "ai_tokens_used": usage.get("total_tokens", 0),
     }
 
