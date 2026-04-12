@@ -25,7 +25,7 @@ class LayoutSection(BaseModel):
 
 class LayoutResponse(BaseModel):
     """AI 排版响应"""
-    sections: list[LayoutSection] = Field(..., description="结构化排版区块")
+    sections: list[LayoutSection] = Field(default=[], description="结构化排版区块（v3.0 已弃用，保留兼容）")
     html: str = Field(..., description="完整 HTML（可直接复制到公众号）")
     suggested_theme: str = Field(default="default", description="AI 推荐的主题")
     word_count: int = Field(..., description="原文字数")
@@ -54,7 +54,7 @@ class ThemeItem(BaseModel):
     id: str
     name: str
     preview: str = ""
-    styles: ThemeStyle
+    styles: dict = Field(default={}, description="主题样式参数")
     is_premium: bool = False
 
 

@@ -2,18 +2,20 @@
 """
 排版业务逻辑
 
+架构 v3.0：AI 返回 Markdown → mistune 渲染器 → 主题化内联样式 HTML
+
 主题系统：从 backend/themes/*.json 动态加载，运营无需改代码即可新增主题
 """
 import json
 import re
 import time
 import logging
-import httpx
 from pathlib import Path
 from typing import Optional
 from services.ai_service import call_glm4_flash, extract_content, extract_usage
 from services.prompt_manager import prompt_manager
-from services.html_sanitizer import build_html_from_sections
+from services.markdown_renderer import render_markdown_to_html
+from services.html_sanitizer import sanitize_html_for_wechat
 from config import settings
 
 logger = logging.getLogger(__name__)
@@ -30,6 +32,7 @@ def load_all_themes() -> dict[str, dict]:
     从 backend/themes/ 目录加载所有 JSON 主题文件
 
     每个 JSON 文件定义一个主题，文件名即主题 ID。
+    启动后缓存在内存中，重启服务刷新。
     """
     global _themes_cache
     if _themes_cache:
@@ -60,6 +63,8 @@ def get_theme(theme_id: str) -> dict:
     return themes.get(theme_id, themes.get("default", {}))
 
 
+# ===== 输入处理 =====
+
 def clean_input(content: str) -> str:
     """清理用户输入"""
     content = re.sub(r"<[^>]+>", "", content)
@@ -79,104 +84,39 @@ def validate_input(content: str) -> Optional[str]:
     return None
 
 
-def parse_ai_response(ai_text: str) -> list[dict]:
-    """解析 AI 返回的 JSON"""
+# ===== 核心排版流程 =====
+
+def clean_markdown_output(ai_text: str) -> str:
+    """
+    清理 AI 返回的 Markdown 文本
+
+    AI 有时会在输出前后加上 ```markdown 代码块标记，
+    需要去掉这些不需要的包裹。
+    """
     text = ai_text.strip()
-    
-    # 去掉 markdown 代码块标记
+
+    # 去掉 ```markdown ... ``` 包裹
     if text.startswith("```"):
-        # 找到第一个换行后的内容
         first_newline = text.find('\n')
         if first_newline != -1:
             text = text[first_newline + 1:]
     if text.endswith("```"):
         text = text[:-3]
-    text = text.strip()
 
-    # 第一尝试：直接解析
-    try:
-        sections = json.loads(text)
-        if isinstance(sections, list):
-            return sections
-    except json.JSONDecodeError as e:
-        logger.warning(f"JSON 直接解析失败: {e}")
-    
-    # 第二尝试：逐个解析（提取每个完整的 JSON 对象）
-    import re
-    
-    # 用更精确的正则：匹配完整的 {...} 对象
-    # 包括嵌套的内容如 "items": [...]
-    sections = []
-    
-    # 简化处理：将整个字符串中的控制字符替换掉
-    # 在 JSON 字符串值内部，换行符需要转义
-    fixed_text = text
-    
-    # 方法：逐字符扫描，在字符串值内部转义控制字符
-    result = []
-    in_string = False
-    escape_next = False
-    
-    for char in fixed_text:
-        if escape_next:
-            result.append(char)
-            escape_next = False
-            continue
-        
-        if char == '\\' and in_string:
-            result.append(char)
-            escape_next = True
-            continue
-        
-        if char == '"':
-            in_string = not in_string
-            result.append(char)
-            continue
-        
-        if in_string:
-            # 在字符串内部，转义控制字符
-            if char == '\n':
-                result.append(' ')
-            elif char == '\t':
-                result.append(' ')
-            elif char == '\r':
-                result.append('')
-            else:
-                result.append(char)
-        else:
-            result.append(char)
-    
-    fixed_text = ''.join(result)
-    
-    try:
-        sections = json.loads(fixed_text)
-        if isinstance(sections, list):
-            logger.info(f"JSON 修复成功 | 区块数: {len(sections)}")
-            return sections
-    except json.JSONDecodeError as e2:
-        logger.error(f"JSON 解析最终失败: {e2}")
-    
-    # 第三尝试：正则提取（最后的手段）
-    # 匹配简单对象 {"type":"xxx","content":"..."}
-    pattern = r'\{"type"\s*:\s*"[^"]+"\s*,\s*"content"\s*:\s*"[^"]*"\s*\}'
-    matches = re.findall(pattern, fixed_text, re.IGNORECASE)
-    
-    for match in matches:
-        try:
-            obj = json.loads(match)
-            sections.append(obj)
-        except:
-            continue
-    
-    if sections:
-        logger.info(f"正则提取成功 | 区块数: {len(sections)}")
-        return sections
-    
-    raise ValueError("排版结果解析失败，请重试")
+    return text.strip()
 
 
 async def do_layout(content: str, theme_id: str = "default") -> dict:
-    """执行排版"""
+    """
+    执行排版（v3.0 Markdown 架构）
+
+    流程：
+    1. 清理用户输入
+    2. 调用 AI 将纯文本转为 Markdown
+    3. 用 mistune + WechatRenderer 将 Markdown 转为主题化 HTML
+    4. 微信兼容性清洗
+    5. 返回结果
+    """
     start_time = time.time()
 
     content = clean_input(content)
@@ -188,7 +128,7 @@ async def do_layout(content: str, theme_id: str = "default") -> dict:
     system_prompt, prompt_version = prompt_manager.get_system_prompt()
     user_prompt = prompt_manager.get_user_prompt(content)
 
-    # 调用 AI
+    # 调用 AI（返回 Markdown）
     logger.info(f"开始排版 | 字数: {len(content)} | Prompt: {prompt_version}")
     response = await call_glm4_flash(
         system_prompt=system_prompt,
@@ -197,19 +137,24 @@ async def do_layout(content: str, theme_id: str = "default") -> dict:
 
     ai_text = extract_content(response)
     usage = extract_usage(response)
-    sections = parse_ai_response(ai_text)
 
-    # 生成 HTML
+    # 清理 AI 输出的 Markdown
+    markdown_text = clean_markdown_output(ai_text)
+
+    # 加载主题 + 渲染 Markdown → HTML
     theme = get_theme(theme_id)
-    html = build_html_from_sections(sections, theme)
+    html = render_markdown_to_html(markdown_text, theme)
+
+    # 微信兼容性最终清洗
+    html = sanitize_html_for_wechat(html)
 
     process_time_ms = int((time.time() - start_time) * 1000)
     process_time_str = f"{process_time_ms / 1000:.1f}s"
 
-    logger.info(f"排版完成 | 区块数: {len(sections)} | 耗时: {process_time_str}")
+    logger.info(f"排版完成 | 耗时: {process_time_str} | Markdown 长度: {len(markdown_text)}")
 
     return {
-        "sections": sections,
+        "sections": [],  # v3.0 不再返回 JSON sections，前端不依赖此字段
         "html": html,
         "suggested_theme": theme_id,
         "word_count": len(content),
