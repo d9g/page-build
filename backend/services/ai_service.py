@@ -28,7 +28,7 @@ async def call_glm4_flash(
     if not settings.ZHIPU_API_KEY:
         raise ValueError("ZHIPU_API_KEY 未配置")
 
-    async with httpx.AsyncClient(timeout=60.0) as client:
+    async with httpx.AsyncClient(timeout=180.0) as client:
         response = await client.post(
             settings.ZHIPU_API_URL,
             headers={
