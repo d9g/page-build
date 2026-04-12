@@ -93,6 +93,11 @@ async def wechat_callback(account_id: str, request: Request):
 
     msg = parse_wechat_message(body)
 
+    # 加密消息检测：提示用户配置明文模式或 EncodingAESKey
+    if msg.is_encrypted:
+        logger.warning(f"收到加密消息 | account={account_id} | 请配置明文模式或添加解密支持")
+        return "success"
+
     # 处理文本消息
     if msg.msg_type == "text" and msg.content.strip() == settings.VERIFY_KEYWORD:
         redis_client = getattr(request.app.state, "redis", None)

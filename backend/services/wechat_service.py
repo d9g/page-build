@@ -2,6 +2,8 @@
 """
 微信消息处理服务
 解析公众号推送的 XML 消息、构建 XML 回复、签名验证
+
+支持明文模式和加密模式检测
 """
 import hashlib
 import time
@@ -28,13 +30,18 @@ class WechatMessage:
     msg_id: str = ""
     event: str = ""
     event_key: str = ""
+    is_encrypted: bool = False
 
 
 def parse_wechat_message(xml_body: bytes) -> WechatMessage:
     """
     解析微信推送的 XML 消息
 
-    消息格式示例：
+    支持两种格式：
+    1. 明文消息：直接解析
+    2. 加密消息：检测 Encrypt 节点，标记为加密（需要解密处理）
+
+    消息格式示例（明文）：
     <xml>
       <ToUserName><![CDATA[gh_xxx]]></ToUserName>
       <FromUserName><![CDATA[openid_xxx]]></FromUserName>
@@ -43,10 +50,26 @@ def parse_wechat_message(xml_body: bytes) -> WechatMessage:
       <Content><![CDATA[排版]]></Content>
       <MsgId>1234567890123456</MsgId>
     </xml>
+
+    加密格式：
+    <xml>
+      <ToUserName><![CDATA[gh_xxx]]></ToUserName>
+      <Encrypt><![CDATA[加密内容]]></Encrypt>
+    </xml>
     """
     msg = WechatMessage()
     try:
         root = ET.fromstring(xml_body)
+        
+        # 检查是否加密消息
+        encrypt = _get_xml_text(root, "Encrypt")
+        if encrypt:
+            msg.is_encrypted = True
+            msg.to_user = _get_xml_text(root, "ToUserName")
+            logger.warning("收到加密消息，需要配置 EncodingAESKey 进行解密")
+            return msg
+        
+        # 明文消息解析
         msg.to_user = _get_xml_text(root, "ToUserName")
         msg.from_user = _get_xml_text(root, "FromUserName")
         msg.create_time = int(_get_xml_text(root, "CreateTime") or "0")
@@ -55,6 +78,9 @@ def parse_wechat_message(xml_body: bytes) -> WechatMessage:
         msg.msg_id = _get_xml_text(root, "MsgId")
         msg.event = _get_xml_text(root, "Event")
         msg.event_key = _get_xml_text(root, "EventKey")
+        
+        logger.info(f"解析消息 | type={msg.msg_type} | from={msg.from_user[:8]}... | content={msg.content[:20] if msg.content else ''}")
+        
     except ET.ParseError as e:
         logger.error(f"XML 解析失败: {e}")
     return msg
