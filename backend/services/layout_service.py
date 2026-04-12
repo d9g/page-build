@@ -82,64 +82,94 @@ def parse_ai_response(ai_text: str) -> list[dict]:
     
     # 去掉 markdown 代码块标记
     if text.startswith("```"):
-        lines = text.split("\n")
-        text = "\n".join(lines[1:])
+        # 找到第一个换行后的内容
+        first_newline = text.find('\n')
+        if first_newline != -1:
+            text = text[first_newline + 1:]
     if text.endswith("```"):
         text = text[:-3]
     text = text.strip()
 
+    # 第一尝试：直接解析
     try:
         sections = json.loads(text)
-        if not isinstance(sections, list):
-            raise ValueError("AI 返回的不是 JSON 数组")
-        return sections
-    except json.JSONDecodeError as e:
-        logger.warning(f"AI JSON 解析失败，尝试修复: {e}")
-        
-        # 方法：逐行构建 JSON 对象
-        # AI 返回的是 JSON 数组，但内部可能有问题
-        # 尝试提取每个 {...} 对象单独解析
-        
-        import re
-        
-        # 提取所有 JSON 对象
-        pattern = r'\{[^{}]*"type"[^{}]*"content"[^{}]*\}'
-        objects = re.findall(pattern, text, re.DOTALL)
-        
-        if not objects:
-            # 尝试更宽松的匹配
-            pattern2 = r'\{"type":\s*"[^"]+",\s*"content":\s*"[^"]*"\}'
-            objects = re.findall(pattern2, text)
-        
-        sections = []
-        for obj_text in objects:
-            try:
-                # 清理控制字符
-                cleaned = obj_text.replace('\n', '\\n').replace('\t', '\\t').replace('\r', '\\r')
-                obj = json.loads(cleaned)
-                sections.append(obj)
-            except:
-                continue
-        
-        # 也尝试提取 divider 和 list 类型
-        divider_pattern = r'\{"type":\s*"divider"\}'
-        for obj_text in re.findall(divider_pattern, text):
-            sections.append({"type": "divider"})
-        
-        list_pattern = r'\{"type":\s*"list",\s*"items":\s*\[[^\]]*\]\}'
-        for obj_text in re.findall(list_pattern, text):
-            try:
-                obj = json.loads(obj_text)
-                sections.append(obj)
-            except:
-                continue
-        
-        if sections:
-            logger.info(f"JSON 修复成功，提取到 {len(sections)} 个区块")
+        if isinstance(sections, list):
             return sections
+    except json.JSONDecodeError as e:
+        logger.warning(f"JSON 直接解析失败: {e}")
+    
+    # 第二尝试：逐个解析（提取每个完整的 JSON 对象）
+    import re
+    
+    # 用更精确的正则：匹配完整的 {...} 对象
+    # 包括嵌套的内容如 "items": [...]
+    sections = []
+    
+    # 简化处理：将整个字符串中的控制字符替换掉
+    # 在 JSON 字符串值内部，换行符需要转义
+    fixed_text = text
+    
+    # 方法：逐字符扫描，在字符串值内部转义控制字符
+    result = []
+    in_string = False
+    escape_next = False
+    
+    for char in fixed_text:
+        if escape_next:
+            result.append(char)
+            escape_next = False
+            continue
         
-        logger.error(f"AI JSON 解析失败（无法修复）\n原文: {text[:500]}")
-        raise ValueError("排版结果解析失败，请重试")
+        if char == '\\' and in_string:
+            result.append(char)
+            escape_next = True
+            continue
+        
+        if char == '"':
+            in_string = not in_string
+            result.append(char)
+            continue
+        
+        if in_string:
+            # 在字符串内部，转义控制字符
+            if char == '\n':
+                result.append(' ')
+            elif char == '\t':
+                result.append(' ')
+            elif char == '\r':
+                result.append('')
+            else:
+                result.append(char)
+        else:
+            result.append(char)
+    
+    fixed_text = ''.join(result)
+    
+    try:
+        sections = json.loads(fixed_text)
+        if isinstance(sections, list):
+            logger.info(f"JSON 修复成功 | 区块数: {len(sections)}")
+            return sections
+    except json.JSONDecodeError as e2:
+        logger.error(f"JSON 解析最终失败: {e2}")
+    
+    # 第三尝试：正则提取（最后的手段）
+    # 匹配简单对象 {"type":"xxx","content":"..."}
+    pattern = r'\{"type"\s*:\s*"[^"]+"\s*,\s*"content"\s*:\s*"[^"]*"\s*\}'
+    matches = re.findall(pattern, fixed_text, re.IGNORECASE)
+    
+    for match in matches:
+        try:
+            obj = json.loads(match)
+            sections.append(obj)
+        except:
+            continue
+    
+    if sections:
+        logger.info(f"正则提取成功 | 区块数: {len(sections)}")
+        return sections
+    
+    raise ValueError("排版结果解析失败，请重试")
 
 
 async def do_layout(content: str, theme_id: str = "default") -> dict:
