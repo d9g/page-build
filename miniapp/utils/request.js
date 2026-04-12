@@ -1,6 +1,7 @@
 /**
  * 网络请求封装
  * 自动携带 Token、统一错误处理
+ * 支持 SSE 流式返回
  */
 const { baseUrl, apiPrefix } = require('../config/api')
 
@@ -19,7 +20,7 @@ function request(path, options = {}) {
       url,
       method: options.method || 'GET',
       data: options.data || {},
-      timeout: options.timeout || 180000, // 默认 180 秒，AI 处理长文章需要时间
+      timeout: options.timeout || 180000, // 默认 180 秒
       header: {
         'Content-Type': 'application/json',
         'Authorization': token ? `Bearer ${token}` : '',
@@ -29,7 +30,6 @@ function request(path, options = {}) {
         if (res.statusCode === 200) {
           resolve(res.data)
         } else if (res.statusCode === 401) {
-          // Token 过期，需要重新登录
           wx.removeStorageSync('token')
           getApp().globalData.token = ''
           reject(new Error('登录已过期，请重新登录'))
@@ -48,6 +48,100 @@ function request(path, options = {}) {
 }
 
 /**
+ * SSE 流式请求（用于排版）
+ * @param {string} path API 路径
+ * @param {object} data 请求数据
+ * @param {function} onProgress 进度回调
+ * @returns {Promise<object>} 最终结果
+ */
+function requestSSE(path, data, onProgress) {
+  return new Promise((resolve, reject) => {
+    const token = getApp().globalData.token || ''
+    const url = `${baseUrl}${apiPrefix}${path}`
+
+    // 微信小程序通过 enableChunked 支持流式接收
+    const requestTask = wx.request({
+      url,
+      method: 'POST',
+      data: data,
+      enableChunked: true, // 启用分块传输
+      timeout: 300000, // 5 分钟超时（流式不会超时）
+      header: {
+        'Content-Type': 'application/json',
+        'Authorization': token ? `Bearer ${token}` : '',
+        'Accept': 'text/event-stream',
+      },
+      success(res) {
+        // SSE 数据会在 onChunkReceived 中处理
+        // 这里处理最终响应（如果有的话）
+        if (res.statusCode === 200 && res.data && res.data.sections) {
+          resolve(res.data)
+        }
+      },
+      fail(err) {
+        reject(new Error(err.errMsg || '网络异常'))
+      },
+    })
+
+    // 监听分块数据（SSE）
+    requestTask.onChunkReceived((response) {
+      try {
+        // 解析 SSE 数据
+        const chunk = ab2str(response.data)
+        const lines = chunk.split('\n')
+        
+        for (const line of lines) {
+          if (line.startsWith('data:')) {
+            const dataStr = line.substring(5).trim()
+            if (!dataStr) continue
+            
+            try {
+              const data = JSON.parse(dataStr)
+              
+              // 进度更新
+              if (data.status === 'processing' && onProgress) {
+                onProgress(data)
+              }
+              
+              // 完成结果
+              if (data.sections) {
+                resolve(data)
+              }
+              
+              // 错误
+              if (data.message && !data.sections) {
+                reject(new Error(data.message))
+              }
+            } catch (e) {
+              // JSON 解析失败，可能是不完整的数据块
+              console.log('SSE chunk parse error:', e)
+            }
+          }
+        }
+      } catch (e) {
+        console.log('SSE chunk error:', e)
+      }
+    })
+  })
+}
+
+/**
+ * ArrayBuffer 转 String
+ */
+function ab2str(buffer) {
+  // 微信小程序环境
+  if (typeof buffer === 'object' && buffer.byteLength) {
+    const buf = new Uint8Array(buffer)
+    let str = ''
+    for (let i = 0; i < buf.length; i++) {
+      str += String.fromCharCode(buf[i])
+    }
+    return str
+  }
+  return buffer
+}
+
+/**
  * GET 请求
  */
 function get(path, data) {
@@ -61,4 +155,11 @@ function post(path, data) {
   return request(path, { method: 'POST', data })
 }
 
-module.exports = { request, get, post }
+/**
+ * POST SSE 流式请求
+ */
+function postSSE(path, data, onProgress) {
+  return requestSSE(path, data, onProgress)
+}
+
+module.exports = { request, get, post, postSSE }

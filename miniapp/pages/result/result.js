@@ -3,7 +3,7 @@
  * 调用 AI 排版接口，展示预览结果
  * 支持：主题切换、字号/行高/段距 Slider 调整、复制 HTML
  */
-const { post, get } = require('../../utils/request')
+const { post, postSSE, get } = require('../../utils/request')
 const { debounce } = require('../../utils/util')
 
 // 加载阶段文案，模拟进度反馈
@@ -46,7 +46,7 @@ Page({
     }
   },
 
-  /** 执行排版 */
+  /** 执行排版（使用 SSE 流式请求） */
   async doLayout() {
     const app = getApp()
     const content = app.globalData.layoutContent
@@ -58,13 +58,22 @@ Page({
 
     this.setData({ loading: true })
 
-    // 启动模拟进度动画，给用户视觉反馈
+    // 启动模拟进度动画
     this._startProgressAnimation()
 
     try {
-      const result = await post('/layout', {
+      // 使用 SSE 流式请求
+      const result = await postSSE('/layout/stream', {
         content,
         options: { theme: this.data.currentTheme },
+      }, (progressData) => {
+        // 实时更新进度
+        if (progressData.message) {
+          this.setData({
+            loadingText: progressData.message,
+            progress: progressData.progress || 50,
+          })
+        }
       })
 
       // 停止进度动画
