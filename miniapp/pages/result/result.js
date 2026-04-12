@@ -145,7 +145,7 @@ Page({
     this.setData({ paragraphGap: e.detail.value })
   },
 
-  /** 切换主题 */
+  /** 切换主题（本地切换，不调后端） */
   onThemeChange: debounce(function (e) {
     const themeId = e.currentTarget.dataset.id
     if (themeId === this.data.currentTheme) return
@@ -169,26 +169,37 @@ Page({
       }
     }
 
+    // 本地切换主题样式（不重新调用 AI）
     this.setData({ currentTheme: themeId })
-
-    // 重新请求排版（应用新主题）
-    if (this._layoutContent) {
-      this.setData({ loading: true, loadingText: '正在切换主题...', progress: 50 })
-      post('/layout', {
-        content: this._layoutContent,
-        options: { theme: themeId },
-      }).then(result => {
-        this.setData({
-          loading: false,
-          previewHtml: result.html || '',
-          fullHtml: result.html || '',
-        })
-      }).catch(() => {
-        this.setData({ loading: false })
-        wx.showToast({ title: '主题切换失败', icon: 'none' })
-      })
-    }
+    
+    // 根据 theme 的 styles 本地重新渲染 previewHtml
+    const themeStyles = theme?.styles || {}
+    const newHtml = this.applyThemeToHtml(this.data.fullHtml, themeStyles)
+    this.setData({ previewHtml: newHtml })
   }, 300),
+
+  /** 应用主题样式到 HTML（本地处理） */
+  applyThemeToHtml(html, styles) {
+    // 简单处理：替换颜色
+    if (!html || !styles) return html
+    
+    // 默认颜色
+    const defaultColors = {
+      title_color: '#333333',
+      body_color: '#3f3f3f',
+      accent_color: '#07C160',
+      quote_border_color: '#07C160',
+    }
+    
+    // 替换颜色值
+    let result = html
+    for (const [key, color] of Object.entries(defaultColors)) {
+      const newColor = styles[key] || color
+      result = result.replace(new RegExp(color, 'g'), newColor)
+    }
+    
+    return result
+  },
 
   /** 复制 HTML */
   onCopyHtml() {
