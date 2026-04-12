@@ -19,6 +19,7 @@ function request(path, options = {}) {
       url,
       method: options.method || 'GET',
       data: options.data || {},
+      timeout: options.timeout || 180000, // 默认 180 秒，AI 处理长文章需要时间
       header: {
         'Content-Type': 'application/json',
         'Authorization': token ? `Bearer ${token}` : '',
