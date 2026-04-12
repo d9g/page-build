@@ -1,0 +1,18 @@
+{
+  "id": "warm",
+  "name": "暖橙",
+  "description": "暖色调，适合生活/美食/旅行类文章",
+  "is_premium": false,
+  "styles": {
+    "title_color": "#2d2d2d",
+    "title_font_size": 20,
+    "body_color": "#4a4a4a",
+    "body_font_size": 15,
+    "line_height": 1.9,
+    "accent_color": "#ff7f50",
+    "bg_color": "#fffaf5",
+    "quote_color": "#fff5ee",
+    "quote_border_color": "#ff7f50",
+    "divider_style": "dots"
+  }
+}

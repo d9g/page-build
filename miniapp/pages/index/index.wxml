@@ -1,0 +1,52 @@
+<!--pages/index/index.wxml — 首页（输入页）-->
+<view class="container">
+  <!-- 顶部标题区 -->
+  <view class="header">
+    <text class="logo">📝</text>
+    <text class="title">公众号文章排版</text>
+    <text class="subtitle">粘贴或输入内容，AI 一键美化</text>
+  </view>
+
+  <!-- 输入区 -->
+  <view class="card input-card">
+    <textarea
+      class="input-area"
+      placeholder="在此粘贴或输入你的文章内容..."
+      maxlength="8000"
+      value="{{content}}"
+      bindinput="onInput"
+      auto-height="{{false}}"
+    />
+    <view class="toolbar">
+      <view class="tool-btn" bindtap="onPaste">📋 粘贴</view>
+      <view class="tool-btn" bindtap="onClear">🗑️ 清空</view>
+      <text class="word-count">{{contentLength}}/8000</text>
+    </view>
+  </view>
+
+  <!-- 草稿恢复提示 -->
+  <view class="draft-tip" wx:if="{{showDraftTip}}">
+    <text>💡 检测到上次未完成的草稿</text>
+    <view class="draft-actions">
+      <text class="draft-btn" bindtap="onRestoreDraft">恢复草稿</text>
+      <text class="draft-btn dismiss" bindtap="onDismissDraft">忽略</text>
+    </view>
+  </view>
+
+  <!-- AI 排版按钮 -->
+  <button
+    class="btn-primary layout-btn"
+    disabled="{{!canSubmit}}"
+    bindtap="onSubmit"
+  >🤖 AI 智能排版</button>
+
+  <!-- 输入提示 -->
+  <text class="hint" wx:if="{{hintText}}">{{hintText}}</text>
+</view>
+
+<!-- 关注验证弹窗 -->
+<verify-modal
+  show="{{showVerifyModal}}"
+  bind:close="onVerifyClose"
+  bind:verified="onVerified"
+/>

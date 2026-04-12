@@ -1,0 +1,18 @@
+{
+  "id": "blue",
+  "name": "清蓝",
+  "description": "科技蓝，适合技术/商业/行业分析类文章",
+  "is_premium": false,
+  "styles": {
+    "title_color": "#1a1a2e",
+    "title_font_size": 20,
+    "body_color": "#333355",
+    "body_font_size": 15,
+    "line_height": 1.8,
+    "accent_color": "#4a90d9",
+    "bg_color": "#f8faff",
+    "quote_color": "#eef3ff",
+    "quote_border_color": "#4a90d9",
+    "divider_style": "line"
+  }
+}

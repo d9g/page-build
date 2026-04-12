@@ -1,0 +1,27 @@
+<!--pages/about/about.wxml — 关于页面-->
+<view class="container">
+  <view class="card">
+    <text class="section-title">📖 使用说明</text>
+    <view class="step"><text class="step-num">1</text><text>粘贴或输入文章内容（50-8000 字）</text></view>
+    <view class="step"><text class="step-num">2</text><text>点击「AI 智能排版」按钮</text></view>
+    <view class="step"><text class="step-num">3</text><text>选择喜欢的主题风格</text></view>
+    <view class="step"><text class="step-num">4</text><text>复制 HTML，粘贴到公众号编辑器</text></view>
+  </view>
+
+  <view class="card">
+    <text class="section-title">💡 常见问题</text>
+    <view class="faq">
+      <text class="q">Q: 为什么需要关注公众号？</text>
+      <text class="a">A: 这是一个免费工具，关注公众号是我们唯一的推广方式，感谢支持！</text>
+    </view>
+    <view class="faq">
+      <text class="q">Q: 排版结果不满意怎么办？</text>
+      <text class="a">A: 可以点击「重新排版」，AI 每次会有略微不同的排版方案。</text>
+    </view>
+  </view>
+
+  <view class="footer">
+    <text>版本 1.0.0</text>
+    <text class="feedback" bindtap="onFeedback">📮 意见反馈</text>
+  </view>
+</view>

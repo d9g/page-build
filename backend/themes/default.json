@@ -1,0 +1,18 @@
+{
+  "id": "default",
+  "name": "默认",
+  "description": "微信绿，清新简约，适合日常文章",
+  "is_premium": false,
+  "styles": {
+    "title_color": "#333333",
+    "title_font_size": 20,
+    "body_color": "#3f3f3f",
+    "body_font_size": 15,
+    "line_height": 1.8,
+    "accent_color": "#07C160",
+    "bg_color": "#ffffff",
+    "quote_color": "#f6f6f6",
+    "quote_border_color": "#07C160",
+    "divider_style": "dots"
+  }
+}

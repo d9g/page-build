@@ -1,0 +1,18 @@
+{
+  "id": "nature",
+  "name": "自然",
+  "description": "草绿色，适合环保/健康/自然类文章",
+  "is_premium": false,
+  "styles": {
+    "title_color": "#2d4a22",
+    "title_font_size": 20,
+    "body_color": "#3d5a32",
+    "body_font_size": 15,
+    "line_height": 1.9,
+    "accent_color": "#5da73c",
+    "bg_color": "#f9fcf6",
+    "quote_color": "#f0f7ec",
+    "quote_border_color": "#5da73c",
+    "divider_style": "dots"
+  }
+}

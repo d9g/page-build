@@ -1,0 +1,18 @@
+{
+  "id": "pink",
+  "name": "粉红",
+  "description": "少女粉，适合时尚/美妆/情感类文章",
+  "is_premium": true,
+  "styles": {
+    "title_color": "#4a2040",
+    "title_font_size": 20,
+    "body_color": "#5a3050",
+    "body_font_size": 15,
+    "line_height": 1.9,
+    "accent_color": "#ff6b9d",
+    "bg_color": "#fff5f8",
+    "quote_color": "#ffe8f0",
+    "quote_border_color": "#ff6b9d",
+    "divider_style": "dots"
+  }
+}

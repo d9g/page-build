@@ -1,0 +1,9 @@
+# 当前激活的 Prompt 版本
+active_version: "v1.0"
+
+# A/B 测试配置（默认关闭）
+ab_test:
+  enabled: false
+  versions:
+    - version: "v1.0"
+      weight: 100

@@ -1,0 +1,18 @@
+{
+  "id": "chinese",
+  "name": "中国红",
+  "description": "朱红色调，适合传统文化/国潮/节日类文章",
+  "is_premium": false,
+  "styles": {
+    "title_color": "#8b0000",
+    "title_font_size": 22,
+    "body_color": "#333333",
+    "body_font_size": 15,
+    "line_height": 1.8,
+    "accent_color": "#c41e3a",
+    "bg_color": "#fffdf5",
+    "quote_color": "#fef2f0",
+    "quote_border_color": "#c41e3a",
+    "divider_style": "dots"
+  }
+}

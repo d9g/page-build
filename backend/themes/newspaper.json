@@ -1,0 +1,18 @@
+{
+  "id": "newspaper",
+  "name": "报纸",
+  "description": "纽约时报风，衬线体+双线标题，适合新闻评论/行业分析",
+  "is_premium": false,
+  "styles": {
+    "title_color": "#111111",
+    "title_font_size": 22,
+    "body_color": "#000000",
+    "body_font_size": 15,
+    "line_height": 1.7,
+    "accent_color": "#326891",
+    "bg_color": "#ffffff",
+    "quote_color": "#f7f3ee",
+    "quote_border_color": "#d5cfc5",
+    "divider_style": "line"
+  }
+}

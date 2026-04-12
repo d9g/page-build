@@ -1,0 +1,8 @@
+<!--pages/reward/reward.wxml — 激励视频页-->
+<view class="container center-content">
+  <text class="icon">🎬</text>
+  <text class="title">解锁高级排版主题</text>
+  <text class="desc">观看 15 秒短视频，即可免费使用一次高级主题</text>
+  <button class="btn-primary" bindtap="onWatchAd">▶️ 观看视频解锁</button>
+  <text class="hint">本次可解锁：{{themeId}} 主题</text>
+</view>

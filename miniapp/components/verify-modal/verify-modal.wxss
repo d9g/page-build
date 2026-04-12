@@ -1,0 +1,42 @@
+/* 弹窗遮罩 */
+.modal-mask {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 999;
+}
+.modal-content {
+  width: 620rpx; background: #fff; border-radius: 24rpx;
+  padding: 40rpx 36rpx; text-align: center;
+}
+.modal-title { font-size: 36rpx; font-weight: bold; color: #333; display: block; margin-bottom: 28rpx; }
+
+/* 公众号信息 */
+.account-info { margin-bottom: 20rpx; }
+.account-avatar { width: 100rpx; height: 100rpx; border-radius: 50%; margin-bottom: 12rpx; }
+.account-name { display: block; font-size: 30rpx; font-weight: bold; color: #333; }
+.account-desc { display: block; font-size: 24rpx; color: #999; margin-top: 4rpx; }
+
+/* 二维码 */
+.qrcode-wrap { margin: 16rpx 0; }
+.qrcode-img { width: 320rpx; height: 320rpx; }
+.qrcode-hint { display: block; font-size: 22rpx; color: #999; margin-top: 8rpx; }
+
+/* 分割线 */
+.divider { display: flex; align-items: center; margin: 24rpx 0; }
+.divider::before, .divider::after { content: ''; flex: 1; height: 1rpx; background: #e8e8e8; }
+.divider-text { padding: 0 20rpx; font-size: 24rpx; color: #bbb; }
+
+/* 验证码 */
+.verify-desc { font-size: 26rpx; color: #666; display: block; margin-bottom: 20rpx; }
+.code-row { display: flex; align-items: center; gap: 16rpx; margin-bottom: 16rpx; }
+.code-input {
+  flex: 1; height: 80rpx; border: 2rpx solid #ddd; border-radius: 12rpx;
+  text-align: center; font-size: 36rpx; letter-spacing: 12rpx; font-weight: bold;
+}
+.verify-btn {
+  width: 180rpx; height: 80rpx; line-height: 80rpx; font-size: 28rpx;
+  background: #07C160; color: #fff; border-radius: 12rpx; padding: 0;
+}
+.verify-btn[disabled] { background: #ccc; }
+.expire-hint { font-size: 22rpx; color: #bbb; display: block; }

@@ -1,0 +1,12 @@
+.section-title { font-size:32rpx; font-weight:bold; display:block; margin-bottom:20rpx; }
+.step { display:flex; align-items:center; gap:16rpx; margin-bottom:16rpx; font-size:28rpx; color:#555; }
+.step-num {
+  width:44rpx; height:44rpx; line-height:44rpx; text-align:center;
+  background:#07C160; color:#fff; border-radius:50%; font-size:24rpx; font-weight:bold;
+  flex-shrink:0;
+}
+.faq { margin-bottom:20rpx; }
+.q { display:block; font-size:28rpx; font-weight:bold; color:#333; margin-bottom:6rpx; }
+.a { display:block; font-size:26rpx; color:#666; line-height:1.6; }
+.footer { text-align:center; padding:40rpx 0; font-size:24rpx; color:#bbb; }
+.feedback { display:block; margin-top:12rpx; color:#07C160; }

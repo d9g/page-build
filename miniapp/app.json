@@ -1,0 +1,16 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/result/result",
+    "pages/reward/reward",
+    "pages/about/about"
+  ],
+  "window": {
+    "navigationBarTitleText": "AI 智能排版",
+    "navigationBarBackgroundColor": "#07C160",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#f5f5f5",
+    "backgroundTextStyle": "dark"
+  },
+  "sitemapLocation": "sitemap.json"
+}

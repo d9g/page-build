@@ -1,0 +1,18 @@
+{
+  "id": "dark",
+  "name": "暗夜",
+  "description": "深色背景+霓虹强调色，适合科技/创意类文章",
+  "is_premium": true,
+  "styles": {
+    "title_color": "#e0e0e0",
+    "title_font_size": 20,
+    "body_color": "#cccccc",
+    "body_font_size": 15,
+    "line_height": 1.8,
+    "accent_color": "#bb86fc",
+    "bg_color": "#1e1e2e",
+    "quote_color": "#2a2a3e",
+    "quote_border_color": "#bb86fc",
+    "divider_style": "line"
+  }
+}

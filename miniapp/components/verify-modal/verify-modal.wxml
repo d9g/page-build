@@ -1,0 +1,46 @@
+<!--components/verify-modal/verify-modal.wxml — 关注验证弹窗-->
+<view class="modal-mask" wx:if="{{show}}" catchtap="onClose">
+  <view class="modal-content" catchtap="stopPropagation">
+    <text class="modal-title">🔒 关注后即可使用</text>
+
+    <!-- 公众号信息 -->
+    <view class="account-info" wx:if="{{account.name}}">
+      <image class="account-avatar" src="{{account.avatar}}" mode="aspectFill" />
+      <text class="account-name">{{account.name}}</text>
+      <text class="account-desc">{{account.description}}</text>
+    </view>
+
+    <!-- 二维码 -->
+    <view class="qrcode-wrap" wx:if="{{account.qrcode}}">
+      <image class="qrcode-img" src="{{account.qrcode}}" mode="aspectFit"
+        bindlongpress="onSaveQrcode" />
+      <text class="qrcode-hint">长按识别二维码关注</text>
+    </view>
+
+    <!-- 分割线 -->
+    <view class="divider">
+      <text class="divider-text">关注后操作</text>
+    </view>
+
+    <!-- 验证码说明 -->
+    <text class="verify-desc">在公众号发送「{{keyword}}」获取 4 位验证码</text>
+
+    <!-- 验证码输入 -->
+    <view class="code-row">
+      <input
+        class="code-input"
+        type="number"
+        maxlength="4"
+        placeholder="输入验证码"
+        value="{{code}}"
+        bindinput="onCodeInput"
+      />
+      <button class="verify-btn" disabled="{{code.length !== 4 || verifying}}"
+        bindtap="onVerify">
+        {{verifying ? '验证中...' : '验证'}}
+      </button>
+    </view>
+
+    <text class="expire-hint">验证通过后 {{validDays}} 天内免重复验证</text>
+  </view>
+</view>
