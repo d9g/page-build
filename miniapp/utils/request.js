@@ -1,7 +1,6 @@
 /**
  * 网络请求封装
  * 自动携带 Token、统一错误处理
- * 支持 SSE 流式返回
  */
 const { baseUrl, apiPrefix } = require('../config/api')
 
@@ -41,96 +40,15 @@ function request(path, options = {}) {
         }
       },
       fail(err) {
-        reject(new Error('网络异常，请检查网络连接'))
+        // 区分超时和网络异常，给用户更明确的提示
+        if (err.errMsg && err.errMsg.includes('timeout')) {
+          reject(new Error('请求超时，文章较长时需要更多时间，请重试'))
+        } else {
+          reject(new Error('网络异常，请检查网络连接'))
+        }
       },
     })
   })
-}
-
-/**
- * SSE 流式请求（用于排版）
- * @param {string} path API 路径
- * @param {object} data 请求数据
- * @param {function} onProgress 进度回调
- * @returns {Promise<object>} 最终结果
- */
-function requestSSE(path, data, onProgress) {
-  return new Promise((resolve, reject) => {
-    const token = getApp().globalData.token || ''
-    const url = `${baseUrl}${apiPrefix}${path}`
-
-    // 微信小程序通过 enableChunked 支持流式接收
-    const requestTask = wx.request({
-      url,
-      method: 'POST',
-      data: data,
-      enableChunked: true,
-      timeout: 300000,
-      header: {
-        'Content-Type': 'application/json',
-        'Authorization': token ? `Bearer ${token}` : '',
-        'Accept': 'text/event-stream',
-      },
-      success(res) {
-        if (res.statusCode === 200 && res.data && res.data.sections) {
-          resolve(res.data)
-        }
-      },
-      fail(err) {
-        reject(new Error(err.errMsg || '网络异常'))
-      },
-    })
-
-    // 监听分块数据（SSE）
-    requestTask.onChunkReceived((response) => {
-      try {
-        const chunk = ab2str(response.data)
-        const lines = chunk.split('\n')
-        
-        for (const line of lines) {
-          if (line.startsWith('data:')) {
-            const dataStr = line.substring(5).trim()
-            if (!dataStr) continue
-            
-            try {
-              const parsedData = JSON.parse(dataStr)
-              
-              if (parsedData.status === 'processing' && onProgress) {
-                onProgress(parsedData)
-              }
-              
-              if (parsedData.sections) {
-                resolve(parsedData)
-              }
-              
-              if (parsedData.message && !parsedData.sections) {
-                reject(new Error(parsedData.message))
-              }
-            } catch (e) {
-              console.log('SSE chunk parse error:', e)
-            }
-          }
-        }
-      } catch (e) {
-        console.log('SSE chunk error:', e)
-      }
-    })
-  })
-}
-
-/**
- * ArrayBuffer 转 String
- */
-function ab2str(buffer) {
-  if (typeof buffer === 'object' && buffer.byteLength) {
-    const buf = new Uint8Array(buffer)
-    let str = ''
-    for (let i = 0; i < buf.length; i++) {
-      str += String.fromCharCode(buf[i])
-    }
-    return str
-  }
-  return buffer
 }
 
 /**
@@ -147,11 +65,4 @@ function post(path, data) {
   return request(path, { method: 'POST', data })
 }
 
-/**
- * POST SSE 流式请求
- */
-function postSSE(path, data, onProgress) {
-  return requestSSE(path, data, onProgress)
-}
-
-module.exports = { request, get, post, postSSE }
+module.exports = { request, get, post }

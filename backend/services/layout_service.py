@@ -1,10 +1,15 @@
 # -*- coding: utf-8 -*-
-"""排版业务逻辑"""
+"""
+排版业务逻辑
+
+主题系统：从 backend/themes/*.json 动态加载，运营无需改代码即可新增主题
+"""
 import json
 import re
 import time
 import logging
 import httpx
+from pathlib import Path
 from typing import Optional
 from services.ai_service import call_glm4_flash, extract_content, extract_usage
 from services.prompt_manager import prompt_manager
@@ -13,48 +18,46 @@ from config import settings
 
 logger = logging.getLogger(__name__)
 
-# 默认主题配置
-DEFAULT_THEMES = {
-    "default": {
-        "id": "default",
-        "name": "默认",
-        "styles": {
-            "title_color": "#333333",
-            "title_font_size": 20,
-            "body_color": "#3f3f3f",
-            "body_font_size": 15,
-            "line_height": 1.8,
-            "accent_color": "#07C160",
-            "bg_color": "#ffffff",
-            "quote_color": "#f6f6f6",
-            "quote_border_color": "#07C160",
-            "divider_style": "dots",
-        },
-        "is_premium": False,
-    },
-    "warm": {
-        "id": "warm",
-        "name": "暖橙",
-        "styles": {
-            "title_color": "#2d2d2d",
-            "body_color": "#4a4a4a",
-            "accent_color": "#ff7f50",
-            "quote_border_color": "#ff7f50",
-        },
-        "is_premium": False,
-    },
-    "blue": {
-        "id": "blue",
-        "name": "清蓝",
-        "styles": {
-            "title_color": "#1a1a2e",
-            "body_color": "#333355",
-            "accent_color": "#4a90d9",
-            "quote_border_color": "#4a90d9",
-        },
-        "is_premium": False,
-    },
-}
+
+# ===== 主题管理（从 JSON 文件加载） =====
+
+THEMES_DIR = Path(__file__).parent.parent / "themes"
+_themes_cache: dict[str, dict] = {}
+
+
+def load_all_themes() -> dict[str, dict]:
+    """
+    从 backend/themes/ 目录加载所有 JSON 主题文件
+
+    每个 JSON 文件定义一个主题，文件名即主题 ID。
+    """
+    global _themes_cache
+    if _themes_cache:
+        return _themes_cache
+
+    themes = {}
+    if not THEMES_DIR.exists():
+        logger.warning(f"主题目录不存在: {THEMES_DIR}")
+        return themes
+
+    for json_file in sorted(THEMES_DIR.glob("*.json")):
+        try:
+            data = json.loads(json_file.read_text(encoding="utf-8"))
+            theme_id = data.get("id", json_file.stem)
+            themes[theme_id] = data
+            logger.debug(f"加载主题: {theme_id} ({data.get('name', '')})")
+        except (json.JSONDecodeError, KeyError) as e:
+            logger.error(f"主题文件解析失败: {json_file.name} - {e}")
+
+    logger.info(f"已加载 {len(themes)} 个主题")
+    _themes_cache = themes
+    return themes
+
+
+def get_theme(theme_id: str) -> dict:
+    """获取指定主题，不存在则返回 default"""
+    themes = load_all_themes()
+    return themes.get(theme_id, themes.get("default", {}))
 
 
 def clean_input(content: str) -> str:
@@ -197,7 +200,7 @@ async def do_layout(content: str, theme_id: str = "default") -> dict:
     sections = parse_ai_response(ai_text)
 
     # 生成 HTML
-    theme = DEFAULT_THEMES.get(theme_id, DEFAULT_THEMES["default"])
+    theme = get_theme(theme_id)
     html = build_html_from_sections(sections, theme)
 
     process_time_ms = int((time.time() - start_time) * 1000)
@@ -220,4 +223,4 @@ async def do_layout(content: str, theme_id: str = "default") -> dict:
 
 def get_all_themes() -> list[dict]:
     """获取所有主题"""
-    return list(DEFAULT_THEMES.values())
+    return list(load_all_themes().values())

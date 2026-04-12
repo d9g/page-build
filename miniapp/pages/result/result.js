@@ -1,17 +1,19 @@
 /**
  * 排版结果页
  * 调用 AI 排版接口，展示预览结果
- * 支持：主题切换、复制 HTML
+ * 支持：主题切换、快捷调整、复制 HTML
  */
 const { post, get } = require('../../utils/request')
 const { debounce } = require('../../utils/util')
 
-// 加载阶段文案
+// 加载阶段文案（每 2 秒切换一次，给用户持续反馈）
 const LOADING_STAGES = [
   { text: '正在分析文章结构...', hint: '识别段落、标题、引用', progress: 15 },
-  { text: '正在 AI 智能排版...', hint: '生成专业排版方案', progress: 45 },
-  { text: '优化排版细节...', hint: '调整间距和强调样式', progress: 75 },
-  { text: '生成 HTML...', hint: '即将完成', progress: 90 },
+  { text: '正在 AI 智能排版...', hint: '生成专业排版方案', progress: 35 },
+  { text: 'AI 正在思考排版策略...', hint: '优化标题与段落配置', progress: 50 },
+  { text: '优化排版细节...', hint: '调整间距和强调样式', progress: 65 },
+  { text: '生成微信兼容 HTML...', hint: '即将完成', progress: 80 },
+  { text: '最终检查...', hint: '确保排版效果完美', progress: 90 },
 ]
 
 Page({
@@ -25,6 +27,10 @@ Page({
     sections: [],
     themes: [],
     currentTheme: 'default',
+    // 快捷调整参数（lineHeight 为整数 14-26，实际应用时除以10）
+    fontSize: 15,
+    lineHeight: 18,
+    paragraphGap: 16,
   },
 
   onLoad() {
@@ -52,7 +58,7 @@ Page({
       return
     }
 
-    this.setData({ loading: true })
+    this.setData({ loading: true, progress: 0 })
     this._startProgressAnimation()
 
     try {
@@ -71,6 +77,7 @@ Page({
         fullHtml: result.html || '',
       })
 
+      // 缓存排版内容，用于重排
       this._layoutContent = content
       this._promptVersion = result.prompt_version
     } catch (err) {
@@ -91,9 +98,17 @@ Page({
     }
   },
 
-  /** 模拟加载进度动画 */
+  /** 加载进度动画（2 秒切换阶段，给用户持续反馈感） */
   _startProgressAnimation() {
     let stageIndex = 0
+    // 立即显示第一阶段
+    this.setData({
+      loadingText: LOADING_STAGES[0].text,
+      loadingHint: LOADING_STAGES[0].hint,
+      progress: LOADING_STAGES[0].progress,
+    })
+    stageIndex = 1
+
     this._progressTimer = setInterval(() => {
       if (stageIndex < LOADING_STAGES.length) {
         const stage = LOADING_STAGES[stageIndex]
@@ -104,7 +119,7 @@ Page({
         })
         stageIndex++
       }
-    }, 5000)
+    }, 2000)
   },
 
   _stopProgressAnimation() {
@@ -114,7 +129,7 @@ Page({
     }
   },
 
-  /** 切换主题（本地切换） */
+  /** 切换主题（本地切换，不调用 AI） */
   onThemeChange: debounce(function (e) {
     const themeId = e.currentTarget.dataset.id
     if (themeId === this.data.currentTheme) return
@@ -143,7 +158,7 @@ Page({
     this.setData({ previewHtml: newHtml })
   }, 300),
 
-  /** 应用主题样式到 HTML */
+  /** 应用主题样式到 HTML（颜色替换） */
   applyThemeToHtml(html, styles) {
     if (!html || !styles) return html
     const defaultColors = {
@@ -160,6 +175,41 @@ Page({
     return result
   },
 
+  /** 字号调整 */
+  onFontSizeChange(e) {
+    this.setData({ fontSize: e.detail.value })
+    this._applyAdjustments()
+  },
+
+  /** 行高调整 */
+  onLineHeightChange(e) {
+    this.setData({ lineHeight: e.detail.value })
+    this._applyAdjustments()
+  },
+
+  /** 段距调整 */
+  onParagraphGapChange(e) {
+    this.setData({ paragraphGap: e.detail.value })
+    this._applyAdjustments()
+  },
+
+  /** 应用快捷调整到 HTML（前端本地处理，不重调 AI） */
+  _applyAdjustments: debounce(function () {
+    let html = this.data.fullHtml
+    if (!html) return
+
+    const { fontSize, lineHeight, paragraphGap } = this.data
+    const actualLineHeight = lineHeight / 10
+    // 替换字号
+    html = html.replace(/font-size:\s*\d+px/g, `font-size:${fontSize}px`)
+    // 替换行高
+    html = html.replace(/line-height:\s*[\d.]+/g, `line-height:${actualLineHeight}`)
+    // 替换段落间距
+    html = html.replace(/margin-bottom:\s*\d+px/g, `margin-bottom:${paragraphGap}px`)
+
+    this.setData({ previewHtml: html })
+  }, 200),
+
   /** 复制 HTML */
   onCopyHtml() {
     const html = this.data.fullHtml
@@ -175,8 +225,29 @@ Page({
     })
   },
 
+  /** 重新排版 */
+  onRetry() {
+    this.setData({
+      previewHtml: '',
+      fullHtml: '',
+      sections: [],
+      fontSize: 15,
+      lineHeight: 18,
+      paragraphGap: 16,
+    })
+    this.doLayout()
+  },
+
   /** 返回首页 */
   onGoBack() {
     wx.navigateBack()
+  },
+
+  /** 分享配置 */
+  onShareAppMessage() {
+    return {
+      title: '公众号文章一键 AI 排版，效果超赞！',
+      path: '/pages/index/index',
+    }
   },
 })
