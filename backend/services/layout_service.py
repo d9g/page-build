@@ -108,17 +108,12 @@ def clean_markdown_output(ai_text: str) -> str:
 async def do_layout(
     content: str,
     theme_id: str = "default",
-    model: str = "glm-4-flash",
-    provider: str = "zhipu",
 ) -> dict:
     """
-    执行排版（v3.0 Markdown 架构 + provider/model 双维度）
+    执行排版（v3.0 Markdown 架构）
 
-    Args:
-        content: 用户输入的文章原文
-        theme_id: 主题 ID
-        model: 模型名称（如 glm-5, qwen-max）
-        provider: 厂商 ID（zhipu / dashscope）
+    模型和厂商从 settings.AI_PROVIDER / settings.AI_MODEL 读取，
+    切换模型只需改 .env，无需改代码。
     """
     start_time = time.time()
 
@@ -126,6 +121,9 @@ async def do_layout(
     error = validate_input(content)
     if error:
         raise ValueError(error)
+
+    provider = settings.AI_PROVIDER
+    model = settings.AI_MODEL
 
     # 加载 Prompt
     system_prompt, prompt_version = prompt_manager.get_system_prompt()

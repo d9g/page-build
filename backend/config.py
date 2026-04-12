@@ -45,6 +45,11 @@ class Settings:
     SERVER_PORT: int = int(os.getenv("SERVER_PORT", "8000"))
     DEBUG: bool = os.getenv("DEBUG", "false").lower() == "true"
 
+    # ===== AI 模型配置 =====
+    # 切换模型只需改 .env 中这两项，无需改任何代码
+    AI_PROVIDER: str = os.getenv("AI_PROVIDER", "zhipu")
+    AI_MODEL: str = os.getenv("AI_MODEL", "glm-4-flash")
+
     # ===== 业务限制 =====
     MAX_INPUT_LENGTH: int = 8000
     MIN_INPUT_LENGTH: int = 50

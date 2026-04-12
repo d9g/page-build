@@ -64,15 +64,7 @@ Page({
     try {
       const result = await post('/layout', {
         content,
-        // NOTE: 切换 AI 只需改 provider 和 model
-        // provider: 'zhipu'     → 用智谱的 Key
-        // provider: 'dashscope' → 用阿里百炼的 Key
-        // model: 同一个模型可以走不同厂商，如 glm-5 在阿里也能调
-        options: {
-          theme: this.data.currentTheme,
-          provider: 'dashscope',
-          model: 'qwen-max',
-        },
+        options: { theme: this.data.currentTheme },
       })
 
       this._stopProgressAnimation()
