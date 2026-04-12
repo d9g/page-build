@@ -14,7 +14,7 @@ const ENV = {
 }
 
 // NOTE: 开发测试时用 'dev'（连本地后端），发布上线时改为 'prod'
-const currentEnv = 'dev'
+const currentEnv = 'prod'
 
 module.exports = {
   baseUrl: ENV[currentEnv].baseUrl,
