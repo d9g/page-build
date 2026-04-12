@@ -3,8 +3,7 @@
 排版业务逻辑
 
 架构 v3.0：AI 返回 Markdown → mistune 渲染器 → 主题化内联样式 HTML
-
-主题系统：从 backend/themes/*.json 动态加载，运营无需改代码即可新增主题
+支持多 AI 模型（智谱全系列 + 阿里百炼全系列）
 """
 import json
 import re
@@ -12,7 +11,7 @@ import time
 import logging
 from pathlib import Path
 from typing import Optional
-from services.ai_service import call_glm4_flash, extract_content, extract_usage
+from services.ai_service import call_ai_model, extract_content, extract_usage
 from services.prompt_manager import prompt_manager
 from services.markdown_renderer import render_markdown_to_html
 from services.html_sanitizer import sanitize_html_for_wechat
@@ -106,9 +105,13 @@ def clean_markdown_output(ai_text: str) -> str:
     return text.strip()
 
 
-async def do_layout(content: str, theme_id: str = "default") -> dict:
+async def do_layout(
+    content: str,
+    theme_id: str = "default",
+    model_id: str = "glm-4-flash",
+) -> dict:
     """
-    执行排版（v3.0 Markdown 架构）
+    执行排版（v3.0 Markdown 架构 + 多模型支持）
 
     流程：
     1. 清理用户输入
@@ -116,6 +119,11 @@ async def do_layout(content: str, theme_id: str = "default") -> dict:
     3. 用 mistune + WechatRenderer 将 Markdown 转为主题化 HTML
     4. 微信兼容性清洗
     5. 返回结果
+
+    Args:
+        content: 用户输入的文章原文
+        theme_id: 主题 ID
+        model_id: AI 模型 ID（支持 glm-4-flash/glm-5/qwen-plus 等）
     """
     start_time = time.time()
 
@@ -129,10 +137,13 @@ async def do_layout(content: str, theme_id: str = "default") -> dict:
     user_prompt = prompt_manager.get_user_prompt(content)
 
     # 调用 AI（返回 Markdown）
-    logger.info(f"开始排版 | 字数: {len(content)} | Prompt: {prompt_version}")
-    response = await call_glm4_flash(
+    logger.info(
+        f"开始排版 | 字数: {len(content)} | 模型: {model_id} | Prompt: {prompt_version}"
+    )
+    response = await call_ai_model(
         system_prompt=system_prompt,
         user_content=user_prompt,
+        model_id=model_id,
     )
 
     ai_text = extract_content(response)
@@ -151,17 +162,17 @@ async def do_layout(content: str, theme_id: str = "default") -> dict:
     process_time_ms = int((time.time() - start_time) * 1000)
     process_time_str = f"{process_time_ms / 1000:.1f}s"
 
-    logger.info(f"排版完成 | 耗时: {process_time_str} | Markdown 长度: {len(markdown_text)}")
+    logger.info(f"排版完成 | 耗时: {process_time_str} | 模型: {model_id}")
 
     return {
-        "sections": [],  # v3.0 不再返回 JSON sections，前端不依赖此字段
+        "sections": [],
         "html": html,
         "suggested_theme": theme_id,
         "word_count": len(content),
         "process_time": process_time_str,
         "process_time_ms": process_time_ms,
         "prompt_version": prompt_version,
-        "ai_model": "glm-4-flash",
+        "ai_model": model_id,
         "ai_tokens_used": usage.get("total_tokens", 0),
     }
 

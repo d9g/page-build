@@ -13,8 +13,8 @@ const ENV = {
   },
 }
 
-// NOTE: 切换环境时修改此值，或通过微信开发者工具的编译模式控制
-const currentEnv = 'prod'
+// NOTE: 开发测试时用 'dev'（连本地后端），发布上线时改为 'prod'
+const currentEnv = 'dev'
 
 module.exports = {
   baseUrl: ENV[currentEnv].baseUrl,

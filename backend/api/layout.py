@@ -1,17 +1,13 @@
 # -*- coding: utf-8 -*-
 """
-排版 API — 普通 POST 返回
-
-SSE 流式方案已评估后移除：
-- 微信小程序 enableChunked 兼容性差，部分机型/版本不支持
-- AI 返回完整 JSON 结构，无法按段流式
-- 替代方案：前端模拟进度动画 + 后端 180s 超时
+排版 API — 普通 POST 返回 + 模型列表
 """
 import logging
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Request, Header
-from models.schemas import LayoutRequest, LayoutResponse, LayoutSection, ErrorResponse
+from models.schemas import LayoutRequest, LayoutResponse, ErrorResponse
 from services.layout_service import do_layout
+from services.ai_service import get_available_models
 from services.auth_service import get_openid_from_token
 from middleware.rate_limiter import check_rate_limit
 
@@ -35,9 +31,10 @@ async def layout(
     authorization: Optional[str] = Header(default=None),
 ):
     """
-    AI 排版接口（普通 POST 返回）
+    AI 排版接口
 
-    流程：Token 鉴权 → 频率限制 → AI 排版 → 返回 JSON + HTML
+    流程：Token 鉴权 → 频率限制 → AI 排版 → 返回 HTML
+    支持 options.model 选择 AI 模型（默认 glm-4-flash）
     """
     # Token 鉴权
     if not authorization or not authorization.startswith("Bearer "):
@@ -52,14 +49,21 @@ async def layout(
         # 频率限制
         await check_rate_limit(openid, "layout", redis_client=redis_client)
 
+        # 解析选项
         theme_id = "default"
+        model_id = "glm-4-flash"
         if request.options:
             theme_id = request.options.get("theme", "default")
+            model_id = request.options.get("model", "glm-4-flash")
 
-        result = await do_layout(content=request.content, theme_id=theme_id)
+        result = await do_layout(
+            content=request.content,
+            theme_id=theme_id,
+            model_id=model_id,
+        )
 
         return LayoutResponse(
-            sections=[LayoutSection(**s) for s in result["sections"]],
+            sections=[],
             html=result["html"],
             suggested_theme=result["suggested_theme"],
             word_count=result["word_count"],
@@ -74,3 +78,14 @@ async def layout(
     except Exception as e:
         logger.exception("排版接口异常")
         raise HTTPException(status_code=500, detail=f"排版失败: {str(e)}")
+
+
+@router.get("/models", summary="获取可用 AI 模型列表")
+async def list_models():
+    """
+    返回当前已配置 API Key 的可用模型
+
+    前端根据此列表展示模型选择器
+    """
+    models = get_available_models()
+    return {"models": models}
