@@ -20,7 +20,7 @@ function request(path, options = {}) {
       url,
       method: options.method || 'GET',
       data: options.data || {},
-      timeout: options.timeout || 180000, // 默认 180 秒
+      timeout: options.timeout || 180000,
       header: {
         'Content-Type': 'application/json',
         'Authorization': token ? `Bearer ${token}` : '',
@@ -64,16 +64,14 @@ function requestSSE(path, data, onProgress) {
       url,
       method: 'POST',
       data: data,
-      enableChunked: true, // 启用分块传输
-      timeout: 300000, // 5 分钟超时（流式不会超时）
+      enableChunked: true,
+      timeout: 300000,
       header: {
         'Content-Type': 'application/json',
         'Authorization': token ? `Bearer ${token}` : '',
         'Accept': 'text/event-stream',
       },
       success(res) {
-        // SSE 数据会在 onChunkReceived 中处理
-        // 这里处理最终响应（如果有的话）
         if (res.statusCode === 200 && res.data && res.data.sections) {
           resolve(res.data)
         }
@@ -84,9 +82,8 @@ function requestSSE(path, data, onProgress) {
     })
 
     // 监听分块数据（SSE）
-    requestTask.onChunkReceived((response) {
+    requestTask.onChunkReceived((response) => {
       try {
-        // 解析 SSE 数据
         const chunk = ab2str(response.data)
         const lines = chunk.split('\n')
         
@@ -96,24 +93,20 @@ function requestSSE(path, data, onProgress) {
             if (!dataStr) continue
             
             try {
-              const data = JSON.parse(dataStr)
+              const parsedData = JSON.parse(dataStr)
               
-              // 进度更新
-              if (data.status === 'processing' && onProgress) {
-                onProgress(data)
+              if (parsedData.status === 'processing' && onProgress) {
+                onProgress(parsedData)
               }
               
-              // 完成结果
-              if (data.sections) {
-                resolve(data)
+              if (parsedData.sections) {
+                resolve(parsedData)
               }
               
-              // 错误
-              if (data.message && !data.sections) {
-                reject(new Error(data.message))
+              if (parsedData.message && !parsedData.sections) {
+                reject(new Error(parsedData.message))
               }
             } catch (e) {
-              // JSON 解析失败，可能是不完整的数据块
               console.log('SSE chunk parse error:', e)
             }
           }
@@ -129,7 +122,6 @@ function requestSSE(path, data, onProgress) {
  * ArrayBuffer 转 String
  */
 function ab2str(buffer) {
-  // 微信小程序环境
   if (typeof buffer === 'object' && buffer.byteLength) {
     const buf = new Uint8Array(buffer)
     let str = ''
