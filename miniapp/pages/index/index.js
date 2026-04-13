@@ -58,7 +58,7 @@ Page({
         if (res.data) {
           // 清理 HTML 标签
           const clean = res.data.replace(/<[^>]+>/g, '')
-          const trimmed = clean.slice(0, 8000)
+          const trimmed = clean.slice(0, 3000)
           this.setData({
             content: trimmed,
             contentLength: trimmed.length,

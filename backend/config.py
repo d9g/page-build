@@ -51,7 +51,7 @@ class Settings:
     AI_MODEL: str = os.getenv("AI_MODEL", "glm-4-flash")
 
     # ===== 业务限制 =====
-    MAX_INPUT_LENGTH: int = 8000
+    MAX_INPUT_LENGTH: int = 3000
     MIN_INPUT_LENGTH: int = 50
     RATE_LIMIT_PER_HOUR: int = 10
     VERIFY_VALID_DAYS: int = 30

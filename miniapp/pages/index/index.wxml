@@ -12,7 +12,7 @@
     <textarea
       class="input-area"
       placeholder="在此粘贴或输入你的文章内容..."
-      maxlength="8000"
+      maxlength="3000"
       value="{{content}}"
       bindinput="onInput"
       auto-height="{{false}}"
@@ -20,7 +20,7 @@
     <view class="toolbar">
       <view class="tool-btn" bindtap="onPaste">📋 粘贴</view>
       <view class="tool-btn" bindtap="onClear">🗑️ 清空</view>
-      <text class="word-count">{{contentLength}}/8000</text>
+      <text class="word-count">{{contentLength}}/3000</text>
     </view>
   </view>
 
