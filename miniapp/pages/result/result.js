@@ -4,7 +4,6 @@
  * 支持：主题切换、快捷调整、复制 HTML
  */
 const { post, get } = require('../../utils/request')
-const { debounce } = require('../../utils/util')
 
 // NOTE: 加载阶段是纯 UI 反馈，与后端实际处理步骤无关
 // AI 排版通常耗时 30-120 秒，动画需要覆盖足够长的时间
@@ -165,8 +164,13 @@ Page({
     }
   },
 
-  /** 切换主题（本地切换，不调用 AI） */
-  onThemeChange: debounce(function (e) {
+  /**
+   * 切换主题（纯本地操作，不调用 AI）
+   * 
+   * 去掉了 debounce：主题切换是单次点击事件不是连续滑动，
+   * 防抖只会徒增 300ms 延迟，让用户觉得卡顿。
+   */
+  onThemeChange(e) {
     const themeId = e.currentTarget.dataset.id
     if (themeId === this.data.currentTheme) return
 
@@ -188,27 +192,33 @@ Page({
       }
     }
 
-    this.setData({ currentTheme: themeId })
     const themeStyles = theme?.styles || {}
     const newHtml = this.applyThemeToHtml(this.data.fullHtml, themeStyles)
-    this.setData({ previewHtml: newHtml })
-  }, 300),
+    // NOTE: 合并为一次 setData 减少跨线程通信
+    this.setData({ currentTheme: themeId, previewHtml: newHtml })
+  },
 
-  /** 应用主题样式到 HTML（颜色替换） */
+  /**
+   * 应用主题样式到 HTML（颜色替换）
+   * 
+   * 用一次正则匹配所有颜色值并替换，比 4 次全文遍历快得多。
+   * 始终基于 fullHtml（AI 原始输出）做替换，保证主题可反复切换。
+   */
   applyThemeToHtml(html, styles) {
     if (!html || !styles) return html
-    const defaultColors = {
-      title_color: '#333333',
-      body_color: '#3f3f3f',
-      accent_color: '#07C160',
-      quote_border_color: '#07C160',
+
+    // 默认颜色 → 主题颜色映射表
+    const colorMap = {
+      '#333333': styles.title_color || '#333333',
+      '#3f3f3f': styles.body_color || '#3f3f3f',
+      '#07c160': styles.accent_color || '#07C160',
     }
-    let result = html
-    for (const [key, color] of Object.entries(defaultColors)) {
-      const newColor = styles[key] || color
-      result = result.replace(new RegExp(color, 'g'), newColor)
-    }
-    return result
+
+    // 单次正则替换所有匹配的颜色值（不区分大小写）
+    const colorPattern = /#333333|#3f3f3f|#07c160/gi
+    return html.replace(colorPattern, (match) => {
+      return colorMap[match.toLowerCase()] || match
+    })
   },
 
   /** 字号调整 */
