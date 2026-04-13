@@ -6,14 +6,26 @@
 const { post, get } = require('../../utils/request')
 const { debounce } = require('../../utils/util')
 
-// 加载阶段文案（每 2 秒切换一次，给用户持续反馈）
+// NOTE: 加载阶段是纯 UI 反馈，与后端实际处理步骤无关
+// AI 排版通常耗时 30-120 秒，动画需要覆盖足够长的时间
+// 前 8 个阶段每 5 秒切换（共 40 秒），之后在 90% 处循环等待提示
 const LOADING_STAGES = [
-  { text: '正在分析文章结构...', hint: '识别段落、标题、引用', progress: 15 },
-  { text: '正在 AI 智能排版...', hint: '生成专业排版方案', progress: 35 },
-  { text: 'AI 正在思考排版策略...', hint: '优化标题与段落配置', progress: 50 },
-  { text: '优化排版细节...', hint: '调整间距和强调样式', progress: 65 },
-  { text: '生成微信兼容 HTML...', hint: '即将完成', progress: 80 },
-  { text: '最终检查...', hint: '确保排版效果完美', progress: 90 },
+  { text: '正在分析文章结构...', hint: '识别段落、标题、引用', progress: 10 },
+  { text: '正在提取关键内容...', hint: '理解文章主题与层次', progress: 20 },
+  { text: '正在 AI 智能排版...', hint: '生成专业排版方案', progress: 30 },
+  { text: 'AI 正在思考排版策略...', hint: '优化标题与段落配置', progress: 40 },
+  { text: '正在优化排版细节...', hint: '调整间距和强调样式', progress: 55 },
+  { text: '正在生成样式代码...', hint: '适配微信公众号格式', progress: 65 },
+  { text: '正在渲染最终效果...', hint: '转换为微信兼容 HTML', progress: 75 },
+  { text: '即将完成...', hint: '正在做最终质量检查', progress: 85 },
+]
+
+// 进度到 90% 后循环展示的等待提示（长文章 AI 响应慢时使用）
+const WAITING_HINTS = [
+  { text: 'AI 还在努力中...', hint: '文章越长处理越慢，请耐心等待' },
+  { text: '正在精雕细琢...', hint: '好的排版需要多一点时间' },
+  { text: '快好了，再等等...', hint: 'AI 正在确保排版效果完美' },
+  { text: '还在处理中...', hint: '长文章通常需要 1-2 分钟' },
 ]
 
 Page({
@@ -98,7 +110,7 @@ Page({
     }
   },
 
-  /** 加载进度动画（2 秒切换阶段，给用户持续反馈感） */
+  /** 加载进度动画（主阶段 5 秒切换，播完后循环等待提示） */
   _startProgressAnimation() {
     let stageIndex = 0
     // 立即显示第一阶段
@@ -109,6 +121,7 @@ Page({
     })
     stageIndex = 1
 
+    // 主阶段：每 5 秒切换一次（8 个阶段 × 5 秒 = 40 秒覆盖）
     this._progressTimer = setInterval(() => {
       if (stageIndex < LOADING_STAGES.length) {
         const stage = LOADING_STAGES[stageIndex]
@@ -118,8 +131,31 @@ Page({
           progress: stage.progress,
         })
         stageIndex++
+      } else {
+        // 主阶段播完，切换到等待循环模式
+        clearInterval(this._progressTimer)
+        this._startWaitingLoop()
       }
-    }, 2000)
+    }, 5000)
+  },
+
+  /**
+   * 等待循环：AI 响应慢时循环展示不同提示
+   * 
+   * 进度固定在 90%，每 8 秒换一条提示文案，
+   * 让用户知道系统没有卡死，只是 AI 处理需要时间。
+   */
+  _startWaitingLoop() {
+    let waitIndex = 0
+    this.setData({ progress: 90 })
+    this._progressTimer = setInterval(() => {
+      const hint = WAITING_HINTS[waitIndex % WAITING_HINTS.length]
+      this.setData({
+        loadingText: hint.text,
+        loadingHint: hint.hint,
+      })
+      waitIndex++
+    }, 8000)
   },
 
   _stopProgressAnimation() {

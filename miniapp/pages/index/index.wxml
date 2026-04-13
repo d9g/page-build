@@ -36,9 +36,9 @@
   <!-- AI 排版按钮 -->
   <button
     class="btn-primary layout-btn"
-    disabled="{{!canSubmit}}"
+    disabled="{{!canSubmit || submitting}}"
     bindtap="onSubmit"
-  >🤖 AI 智能排版</button>
+  >{{submitting ? '⏳ 正在跳转...' : '🤖 AI 智能排版'}}</button>
 
   <!-- 输入提示 -->
   <text class="hint" wx:if="{{hintText}}">{{hintText}}</text>

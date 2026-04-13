@@ -17,6 +17,7 @@ Page({
     content: '',
     contentLength: 0,
     canSubmit: false,
+    submitting: false,
     hintText: '',
     showDraftTip: false,
     showVerifyModal: false,
@@ -107,7 +108,9 @@ Page({
 
   /** 提交排版 */
   async onSubmit() {
-    if (!this.data.canSubmit) return
+    if (!this.data.canSubmit || this.data.submitting) return
+
+    this.setData({ submitting: true })
 
     try {
       await ensureLogin()
@@ -117,7 +120,7 @@ Page({
       if (!app.globalData.verified) {
         const status = await get('/user/status')
         if (!status.verified) {
-          this.setData({ showVerifyModal: true })
+          this.setData({ showVerifyModal: true, submitting: false })
           return
         }
         app.globalData.verified = true
@@ -130,6 +133,9 @@ Page({
       wx.navigateTo({ url: '/pages/result/result' })
     } catch (err) {
       wx.showToast({ title: err.message || '操作失败', icon: 'none' })
+    } finally {
+      // NOTE: 延迟重置，避免页面返回后立即可再次点击
+      setTimeout(() => this.setData({ submitting: false }), 1000)
     }
   },
 
