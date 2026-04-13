@@ -35,6 +35,8 @@
     "list_text_color": "#4a4a4a",
     "code_bg": "#fff8f5",
     "code_color": "#e74c3c",
-    "code_font_size": 13
+    "code_font_size": 13,
+    "table_border_color": "#f0d0c0",
+    "table_row_bg": "#fffaf5"
   }
 }

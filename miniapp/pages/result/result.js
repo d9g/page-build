@@ -234,12 +234,14 @@ Page({
     const defaultToTarget = {
       '#333333': targetStyles.h1_color,          // 标题色
       '#3f3f3f': targetStyles.p_color,           // 正文色
-      '#07c160': targetStyles.strong_color,      // 强调色/边框/装饰
+      '#07c160': targetStyles.strong_color,      // 强调色/边框/装饰/表头背景
       '#f0faf4': targetStyles.blockquote_bg,     // 引用背景/h2背景
       '#555555': targetStyles.blockquote_text_color, // 引用文字色
       '#ffffff': targetStyles.bg_color,          // 全局背景
       '#f5f5f5': targetStyles.code_bg,           // 代码背景
       '#e74c3c': targetStyles.code_color,        // 代码颜色
+      '#e8e8e8': targetStyles.table_border_color, // 表格边框色
+      '#fafafa': targetStyles.table_row_bg,      // 表格行背景色
     }
 
     // 构建替换映射（只保留实际需要变更的颜色）
@@ -296,28 +298,29 @@ Page({
   /**
    * 应用快捷调整（字号/行高/段距）
    *
-   * 只匹配 default 主题中正文的默认值（15px / 1.8 / 16px），
-   * 不影响标题（22px/18px）、代码（13px）、特殊元素的样式。
+   * 基于 fullHtml（AI 原始输出，default 主题）做替换，
+   * 每次都从原始值替换到目标值，保证可重复切换。
+   *
+   * NOTE: 正则中用 \s* 兼容 BeautifulSoup/lxml 清洗后
+   * 可能在 CSS 冒号后插入空格的情况
    */
   _applyQuickAdjust(html) {
     const { fontSize, lineHeight, paragraphGap } = this.data
     const actualLineHeight = lineHeight / 10
 
-    // 只替换正文字号（default 主题 p_font_size=15）
-    // 标题 22px/18px/16px、代码 13px 不受影响
+    // 替换正文字号（默认 15px），不影响标题和代码
     if (fontSize !== 15) {
-      html = html.replace(/font-size:15px/g, `font-size:${fontSize}px`)
+      html = html.replace(/font-size:\s*15px/g, `font-size:${fontSize}px`)
     }
 
-    // 只替换正文行高（default 主题 p_line_height=1.8）
-    // 标题 1.4/1.5、代码 1.6、装饰元素 line-height:1 不受影响
+    // 替换正文行高（默认 1.8），不影响标题和装饰元素
     if (actualLineHeight !== 1.8) {
-      html = html.replace(/line-height:1\.8/g, `line-height:${actualLineHeight}`)
+      html = html.replace(/line-height:\s*1\.8\b/g, `line-height:${actualLineHeight}`)
     }
 
-    // 只替换段落间距（default 主题 p_margin_bottom=16px）
+    // 替换段落间距（默认 margin:0 0 16px）
     if (paragraphGap !== 16) {
-      html = html.replace(/margin:0 0 16px/g, `margin:0 0 ${paragraphGap}px`)
+      html = html.replace(/margin:\s*0\s+0\s+16px/g, `margin:0 0 ${paragraphGap}px`)
     }
 
     return html

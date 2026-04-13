@@ -104,7 +104,18 @@ class WechatRenderer(mistune.HTMLRenderer):
             )
 
     def paragraph(self, text: str) -> str:
-        """正文段落 — 首行缩进 + 字间距"""
+        """
+        正文段落 — 首行缩进 + 字间距
+
+        NOTE: 检测到 ASCII 树状结构（├── └── │ 等）时自动切换为
+        等宽字体渲染，避免目录树在正文样式下变乱。
+        """
+        # 检测 ASCII 树状结构（目录树、流程图等）
+        import re
+        tree_chars = re.search(r'[├└│┌┐┘┬┴┼─]+|\|.*--', text)
+        if tree_chars:
+            return self._render_ascii_block(text)
+
         text = add_cjk_spacing(text)
         text = fix_bold_punctuation(text)
 
@@ -118,8 +129,27 @@ class WechatRenderer(mistune.HTMLRenderer):
         return (
             f'<p style="color:{color};font-size:{size}px;'
             f'line-height:{lh};margin:0 0 {mb};'
-            f'text-indent:{indent};letter-spacing:{spacing};">'
+            f'text-indent:{indent};letter-spacing:{spacing};">' 
             f'{text}</p>\n'
+        )
+
+    def _render_ascii_block(self, text: str) -> str:
+        """
+        将 ASCII 树状结构渲染为等宽代码块样式
+
+        当段落中检测到 ├── └── │ 等目录树字符时调用，
+        确保结构对齐且不受正文缩进/字间距影响。
+        """
+        bg = self._get("code_bg", "#f5f5f5")
+        color = self._get("p_color", "#3f3f3f")
+        size = self._get("code_font_size", 13)
+        return (
+            f'<section style="background:{bg};padding:14px 16px;'
+            f'border-radius:6px;margin:16px 0;overflow-x:auto;">'
+            f'<pre style="margin:0;font-family:Consolas,monospace;'
+            f'font-size:{size}px;color:{color};line-height:1.6;'
+            f'white-space:pre-wrap;word-break:break-word;">'
+            f'{text}</pre></section>\n'
         )
 
     def block_quote(self, text: str) -> str:
@@ -247,7 +277,7 @@ class WechatRenderer(mistune.HTMLRenderer):
             f'border-radius:6px;margin:16px 0;overflow-x:auto;">'
             f'<pre style="margin:0;font-family:Consolas,monospace;'
             f'font-size:{size}px;color:{color};line-height:1.6;'
-            f'white-space:pre-wrap;word-break:break-all;">'
+            f'white-space:pre-wrap;word-break:break-word;">'
             f'{code}</pre></section>\n'
         )
 
@@ -261,6 +291,10 @@ class WechatRenderer(mistune.HTMLRenderer):
     def emphasis(self, text: str) -> str:
         """斜体"""
         return f'<em style="font-style:italic;">{text}</em>'
+
+    def strikethrough(self, text: str) -> str:
+        """删除线 ~~text~~"""
+        return f'<del style="text-decoration:line-through;color:#999;">{text}</del>'
 
     def codespan(self, text: str) -> str:
         """行内代码"""
@@ -286,6 +320,72 @@ class WechatRenderer(mistune.HTMLRenderer):
             f'</section>\n'
         )
 
+    # ===== 表格元素 =====
+
+    def table(self, text: str) -> str:
+        """
+        表格容器
+
+        微信编辑器对 <table> 支持有限，使用内联样式确保正确显示。
+        外层 section 提供水平滚动以适应窄屏。
+        """
+        border_color = self._get("table_border_color", "#e8e8e8")
+        p_color = self._get("p_color", "#3f3f3f")
+        p_size = self._get("p_font_size", 15)
+        return (
+            f'<section style="margin:16px 0;overflow-x:auto;">'
+            f'<table style="width:100%;border-collapse:collapse;'
+            f'font-size:{p_size}px;color:{p_color};'
+            f'border:1px solid {border_color};">'
+            f'{text}'
+            f'</table></section>\n'
+        )
+
+    def table_head(self, text: str) -> str:
+        """表头区域"""
+        return f'<thead>{text}</thead>'
+
+    def table_body(self, text: str) -> str:
+        """表体区域"""
+        return f'<tbody>{text}</tbody>'
+
+    def table_row(self, text: str) -> str:
+        """表格行"""
+        return f'<tr>{text}</tr>'
+
+    def table_cell(self, text: str, align: str = None, head: bool = False) -> str:
+        """
+        表格单元格
+
+        表头(head=True): 使用主题强调色浅底 + 加粗白字
+        表体: 白底 + 隔行变色通过 CSS 实现（微信不支持 nth-child，
+              因此给所有行统一浅灰底色以区分表头表体）
+        """
+        accent = self._get("strong_color", "#07C160")
+        border_color = self._get("table_border_color", "#e8e8e8")
+
+        # 对齐方式
+        align_style = ""
+        if align:
+            align_style = f"text-align:{align};"
+
+        if head:
+            # 表头单元格：强调色背景 + 白色加粗文字
+            return (
+                f'<th style="padding:10px 12px;background:{accent};'
+                f'color:#ffffff;font-weight:bold;'
+                f'border:1px solid {border_color};{align_style}">'
+                f'{text}</th>'
+            )
+        else:
+            # 表体单元格：浅灰背景以区分表头
+            row_bg = self._get("table_row_bg", "#fafafa")
+            return (
+                f'<td style="padding:9px 12px;background:{row_bg};'
+                f'border:1px solid {border_color};{align_style}">'
+                f'{text}</td>'
+            )
+
 
 def render_markdown_to_html(markdown_text: str, theme: dict) -> str:
     """
@@ -305,7 +405,8 @@ def render_markdown_to_html(markdown_text: str, theme: dict) -> str:
     """
     styles = theme.get("styles", {})
     renderer = WechatRenderer(styles)
-    md = mistune.create_markdown(renderer=renderer)
+    # NOTE: 启用扩展插件（table 表格、strikethrough 删除线）
+    md = mistune.create_markdown(renderer=renderer, plugins=['table', 'strikethrough'])
 
     html_body = md(markdown_text)
 
