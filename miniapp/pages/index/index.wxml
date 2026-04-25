@@ -1,17 +1,17 @@
-<!--pages/index/index.wxml — 首页（输入页）-->
+<!--pages/index/index.wxml — 首页（双模式入口）-->
 <view class="container">
   <!-- 顶部标题区 -->
   <view class="header">
     <text class="logo">📝</text>
     <text class="title">公众号文章排版</text>
-    <text class="subtitle">粘贴或输入内容，AI 一键美化</text>
+    <text class="subtitle">粘贴内容，一键排版为公众号格式</text>
   </view>
 
   <!-- 输入区 -->
   <view class="card input-card">
     <textarea
       class="input-area"
-      placeholder="在此粘贴或输入你的文章内容..."
+      placeholder="在此粘贴或输入你的文章内容...&#10;&#10;支持 Markdown 格式"
       maxlength="3000"
       value="{{content}}"
       bindinput="onInput"
@@ -33,14 +33,34 @@
     </view>
   </view>
 
-  <!-- AI 排版按钮 -->
-  <button
-    class="btn-primary layout-btn"
-    disabled="{{!canSubmit || submitting}}"
-    bindtap="onSubmit"
-  >{{submitting ? '⏳ 正在跳转...' : '🤖 AI 智能排版'}}</button>
+  <!-- 双按钮区域 -->
+  <view class="btn-group">
+    <button
+      class="btn-quick"
+      disabled="{{!canSubmit || submitting}}"
+      bindtap="onQuickSubmit"
+    >{{submitting && submitMode === 'quick' ? '⏳ 处理中...' : '⚡ 快速排版'}}</button>
 
-  <!-- 输入提示 -->
+    <button
+      class="btn-ai"
+      disabled="{{!canSubmit || submitting}}"
+      bindtap="onAiSubmit"
+    >{{submitting && submitMode === 'ai' ? '⏳ 处理中...' : '🤖 智能排版'}}</button>
+  </view>
+
+  <!-- 功能说明 -->
+  <view class="mode-desc">
+    <view class="mode-item">
+      <text class="mode-tag quick">免费</text>
+      <text class="mode-text">快速排版：直接格式化 Markdown，秒出结果</text>
+    </view>
+    <view class="mode-item">
+      <text class="mode-tag ai">AI</text>
+      <text class="mode-text">智能排版：AI 自动润色+分段，需验证码</text>
+    </view>
+  </view>
+
+  <!-- 提示文字 -->
   <text class="hint" wx:if="{{hintText}}">{{hintText}}</text>
 </view>
 

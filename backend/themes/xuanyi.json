@@ -1,0 +1,30 @@
+{
+  "id": "xuanyi",
+  "name": "悬疑推理",
+  "desc": "悬疑/推理小说",
+  "category": "小说",
+  "global": {
+    "bg": "#FAFAFA",
+    "ink": "#2C2C2C",
+    "brand": "#C0392B",
+    "brandSoft": "#FADBD8",
+    "fontFamily": "sans-zh",
+    "maxWidth": 335
+  },
+  "h1": { "preset": "cardfill", "color": "#C0392B", "fontSize": 22 },
+  "h2": { "preset": "shortbar", "color": "#C0392B", "fontSize": 19 },
+  "h3": { "preset": "leftbar", "color": "#C0392B", "fontSize": 17 },
+  "h4": { "preset": "arrow", "color": "#2C2C2C", "fontSize": 16 },
+  "p":  { "preset": "justify", "color": "#2C2C2C", "fontSize": 16, "lineHeight": 1.85, "letterSpacing": 0.2 },
+  "blockquote": { "preset": "dashedbox", "textColor": "#555555", "bgColor": "#FFF5F5", "fontSize": 15 },
+  "pre": { "preset": "subtle-border" },
+  "code": { "preset": "pill-soft", "color": "#C0392B", "bgColor": "#FADBD8" },
+  "ul": { "preset": "arrow", "color": "#C0392B" },
+  "ol": { "preset": "arabic", "color": "#C0392B" },
+  "a": { "preset": "bold", "color": "#C0392B" },
+  "img": { "preset": "shadow" },
+  "hr": { "preset": "three-dots", "color": "#C0392B" },
+  "table": { "preset": "card", "color": "#C0392B", "bgColor": "#FADBD8" },
+  "bold": { "color": "#C0392B" },
+  "italic": { "color": "#666666" }
+}

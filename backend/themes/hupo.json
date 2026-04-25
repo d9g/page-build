@@ -1,0 +1,30 @@
+{
+  "id": "hupo",
+  "name": "琥珀橙调",
+  "desc": "情感/生活/故事",
+  "category": "通用",
+  "global": {
+    "bg": "#FFFFFF",
+    "ink": "#5A3A16",
+    "brand": "#E08A2E",
+    "brandSoft": "#FCE7C7",
+    "fontFamily": "serif-zh",
+    "maxWidth": 335
+  },
+  "h1": { "preset": "cardfill", "color": "#E08A2E", "fontSize": 21 },
+  "h2": { "preset": "pillsoft", "color": "#E08A2E", "fontSize": 18 },
+  "h3": { "preset": "wave", "color": "#E08A2E", "fontSize": 17 },
+  "h4": { "preset": "dot", "color": "#5A3A16", "fontSize": 16 },
+  "p":  { "preset": "loose", "color": "#5A3A16", "fontSize": 16, "lineHeight": 1.9, "letterSpacing": 0.4 },
+  "blockquote": { "preset": "card", "textColor": "#6B4A1E", "bgColor": "#FFF8ED", "fontSize": 15 },
+  "pre": { "preset": "warm-paper" },
+  "code": { "preset": "mark", "color": "#E08A2E", "bgColor": "#FCE7C7" },
+  "ul": { "preset": "flower", "color": "#E08A2E" },
+  "ol": { "preset": "circled", "color": "#E08A2E" },
+  "a": { "preset": "dashed", "color": "#E08A2E" },
+  "img": { "preset": "rounded" },
+  "hr": { "preset": "star", "color": "#E08A2E" },
+  "table": { "preset": "softbg", "color": "#E08A2E", "bgColor": "#FFF1DB" },
+  "bold": { "color": "#E08A2E" },
+  "italic": { "color": "#6B4A1E" }
+}

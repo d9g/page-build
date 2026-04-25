@@ -1,0 +1,31 @@
+{
+  "id": "shujuan",
+  "name": "暖棕书卷",
+  "desc": "文化/散文/深度内容",
+  "category": "通用",
+  "isDefault": true,
+  "global": {
+    "bg": "#FFFFFF",
+    "ink": "#3D2E20",
+    "brand": "#C96442",
+    "brandSoft": "#F5E3D7",
+    "fontFamily": "serif-zh",
+    "maxWidth": 335
+  },
+  "h1": { "preset": "underline", "color": "#C96442", "fontSize": 22 },
+  "h2": { "preset": "leftbar", "color": "#C96442", "fontSize": 19 },
+  "h3": { "preset": "underline", "color": "#C96442", "fontSize": 17 },
+  "h4": { "preset": "caret", "color": "#3D2E20", "fontSize": 16 },
+  "p":  { "preset": "normal", "color": "#3D2E20", "fontSize": 16, "lineHeight": 1.85, "letterSpacing": 0.3 },
+  "blockquote": { "preset": "leftbar-bg", "textColor": "#6B5D4F", "bgColor": "#FAF3EB", "fontSize": 15 },
+  "pre": { "preset": "warm-paper" },
+  "code": { "preset": "pill-soft", "color": "#C96442", "bgColor": "#F5E3D7" },
+  "ul": { "preset": "diamond", "color": "#C96442" },
+  "ol": { "preset": "arabic", "color": "#C96442" },
+  "a": { "preset": "dashed", "color": "#C96442" },
+  "img": { "preset": "rounded" },
+  "hr": { "preset": "diamond", "color": "#C96442" },
+  "table": { "preset": "softbg", "color": "#C96442", "bgColor": "#FAF3EB" },
+  "bold": { "color": "#C96442" },
+  "italic": { "color": "#5C4A3A" }
+}

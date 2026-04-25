@@ -1,13 +1,13 @@
 /**
- * 首页逻辑
- * 输入文章内容 → 校验 → 跳转排版结果页
+ * 首页逻辑 v4.0
+ *
+ * 双模式入口：快速排版（本地）/ 智能排版（AI）
  */
 const { post, get } = require('../../utils/request')
 const { ensureLogin } = require('../../utils/auth')
 const { saveDraft, loadDraft, clearDraft } = require('../../utils/storage')
 const { debounce } = require('../../utils/util')
 
-// 草稿自动保存（防抖 1 秒）
 const autoSaveDraft = debounce(function (content) {
   saveDraft(content)
 }, 1000)
@@ -18,13 +18,13 @@ Page({
     contentLength: 0,
     canSubmit: false,
     submitting: false,
+    submitMode: '',
     hintText: '',
     showDraftTip: false,
     showVerifyModal: false,
   },
 
   onLoad() {
-    // 检查草稿
     const draft = loadDraft()
     if (draft && draft.content) {
       this.setData({ showDraftTip: true })
@@ -46,17 +46,14 @@ Page({
     }
 
     this.setData({ content, contentLength: len, canSubmit, hintText })
-
-    // 自动保存草稿
     autoSaveDraft(content)
   },
 
-  /** 粘贴（替换当前内容，而非追加） */
+  /** 粘贴 */
   onPaste() {
     wx.getClipboardData({
       success: (res) => {
         if (res.data) {
-          // 清理 HTML 标签
           const clean = res.data.replace(/<[^>]+>/g, '')
           const trimmed = clean.slice(0, 3000)
           this.setData({
@@ -106,36 +103,72 @@ Page({
     clearDraft()
   },
 
-  /** 提交排版 */
-  async onSubmit() {
+  /**
+   * 快速排版 — 需验证关注公众号
+   *
+   * 不调 AI，直接将内容当 Markdown 渲染
+   */
+  async onQuickSubmit() {
     if (!this.data.canSubmit || this.data.submitting) return
-
-    this.setData({ submitting: true })
+    this.setData({ submitting: true, submitMode: 'quick' })
 
     try {
       await ensureLogin()
-
-      // 检查验证状态
       const app = getApp()
+
+      // NOTE: 快速排版也需要验证关注公众号
       if (!app.globalData.verified) {
         const status = await get('/user/status')
         if (!status.verified) {
           this.setData({ showVerifyModal: true, submitting: false })
+          this._pendingMode = 'quick'
           return
         }
         app.globalData.verified = true
       }
 
-      // 清除草稿并跳转结果页
       clearDraft()
-      // 将内容存到全局，结果页读取
       app.globalData.layoutContent = this.data.content
+      app.globalData.layoutMode = 'quick'
       wx.navigateTo({ url: '/pages/result/result' })
     } catch (err) {
       wx.showToast({ title: err.message || '操作失败', icon: 'none' })
     } finally {
-      // NOTE: 延迟重置，避免页面返回后立即可再次点击
-      setTimeout(() => this.setData({ submitting: false }), 1000)
+      setTimeout(() => this.setData({ submitting: false, submitMode: '' }), 1000)
+    }
+  },
+
+  /**
+   * 智能排版 — 需验证码
+   *
+   * AI 自动识别文本结构 → 转 Markdown → 渲染
+   */
+  async onAiSubmit() {
+    if (!this.data.canSubmit || this.data.submitting) return
+    this.setData({ submitting: true, submitMode: 'ai' })
+
+    try {
+      await ensureLogin()
+      const app = getApp()
+
+      if (!app.globalData.verified) {
+        const status = await get('/user/status')
+        if (!status.verified) {
+          this.setData({ showVerifyModal: true, submitting: false })
+          this._pendingMode = 'ai'
+          return
+        }
+        app.globalData.verified = true
+      }
+
+      clearDraft()
+      app.globalData.layoutContent = this.data.content
+      app.globalData.layoutMode = 'ai'
+      wx.navigateTo({ url: '/pages/result/result' })
+    } catch (err) {
+      wx.showToast({ title: err.message || '操作失败', icon: 'none' })
+    } finally {
+      setTimeout(() => this.setData({ submitting: false, submitMode: '' }), 1000)
     }
   },
 
@@ -144,19 +177,26 @@ Page({
     this.setData({ showVerifyModal: false })
   },
 
-  /** 验证通过 */
+  /** 验证通过 — 自动触发之前挂起的排版模式 */
   onVerified() {
     this.setData({ showVerifyModal: false })
     getApp().globalData.verified = true
     wx.showToast({ title: '验证成功！', icon: 'success' })
-    // 自动触发排版
-    setTimeout(() => this.onSubmit(), 500)
+
+    const mode = this._pendingMode || 'quick'
+    setTimeout(() => {
+      if (mode === 'ai') {
+        this.onAiSubmit()
+      } else {
+        this.onQuickSubmit()
+      }
+    }, 500)
   },
 
-  /** 分享配置 */
+  /** 分享 */
   onShareAppMessage() {
     return {
-      title: 'AI 智能排版 — 公众号文章一键美化',
+      title: '公众号排版工具 — 快速排版 & AI 智能排版',
       path: '/pages/index/index',
     }
   },

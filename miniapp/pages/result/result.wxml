@@ -1,6 +1,6 @@
-<!--pages/result/result.wxml — 排版结果页-->
+<!--pages/result/result.wxml — 排版结果页 v4.0-->
 <view class="container">
-  <!-- 加载中（多阶段进度提示） -->
+  <!-- 加载中 -->
   <view class="loading-wrap" wx:if="{{loading}}">
     <view class="loading-spinner"></view>
     <text class="loading-text">{{loadingText}}</text>
@@ -10,35 +10,15 @@
     <text class="loading-hint" wx:if="{{loadingHint}}">{{loadingHint}}</text>
   </view>
 
-  <!-- 预览区 -->
+  <!-- 上半部分：预览区 -->
   <scroll-view scroll-y class="preview-area" wx:if="{{!loading}}">
-    <view class="preview-card" style="font-size:{{fontSize}}px;line-height:{{lineHeight / 10}};">
+    <view class="preview-card">
       <rich-text nodes="{{previewHtml}}" />
     </view>
   </scroll-view>
 
-  <!-- 底部工具栏 -->
-  <view class="bottom-bar" wx:if="{{!loading}}">
-    <!-- 快捷调整 -->
-    <view class="section-title">📐 快捷调整</view>
-    <view class="slider-group">
-      <view class="slider-item">
-        <text class="slider-label">字号</text>
-        <slider class="slider" min="12" max="20" value="{{fontSize}}" step="1"
-          show-value activeColor="#07C160" bindchanging="onFontSizeChange" />
-      </view>
-      <view class="slider-item">
-        <text class="slider-label">行高</text>
-        <slider class="slider" min="14" max="26" value="{{lineHeight}}" step="1"
-          show-value activeColor="#07C160" bindchanging="onLineHeightChange" />
-      </view>
-      <view class="slider-item">
-        <text class="slider-label">段距</text>
-        <slider class="slider" min="8" max="32" value="{{paragraphGap}}" step="2"
-          show-value activeColor="#07C160" bindchanging="onParagraphGapChange" />
-      </view>
-    </view>
-
+  <!-- 下半部分：参数调整区 -->
+  <view class="adjust-panel" wx:if="{{!loading}}">
     <!-- 主题选择 -->
     <view class="section-title">🎨 主题风格</view>
     <scroll-view scroll-x class="theme-scroll">
@@ -46,22 +26,41 @@
         <view
           wx:for="{{themes}}"
           wx:key="id"
-          class="theme-item {{item.id === currentTheme ? 'active' : ''}} {{item.is_premium ? 'premium' : ''}}"
+          class="theme-item {{item.id === currentTheme ? 'active' : ''}}"
           bindtap="onThemeChange"
           data-id="{{item.id}}"
         >
-          <view class="theme-dot" style="background:{{item.styles.accent_color}}"></view>
-          <text>{{item.name}}</text>
+          <view class="theme-dot" style="background:{{item.global.brand}}"></view>
+          <text class="theme-name">{{item.name}}</text>
+          <text class="theme-desc">{{item.desc}}</text>
         </view>
       </view>
     </scroll-view>
 
+    <!-- 快捷调整滑块 -->
+    <view class="section-title">📐 细节调整</view>
+    <view class="slider-group">
+      <view class="slider-item">
+        <text class="slider-label">字号</text>
+        <slider class="slider" min="13" max="20" value="{{fontSize}}" step="1"
+          show-value activeColor="#C96442" bindchanging="onFontSizeChange" />
+      </view>
+      <view class="slider-item">
+        <text class="slider-label">行高</text>
+        <slider class="slider" min="15" max="24" value="{{lineHeight}}" step="1"
+          show-value activeColor="#C96442" bindchanging="onLineHeightChange" />
+      </view>
+      <view class="slider-item">
+        <text class="slider-label">字间距</text>
+        <slider class="slider" min="0" max="10" value="{{letterSpacing}}" step="1"
+          show-value activeColor="#C96442" bindchanging="onLetterSpacingChange" />
+      </view>
+    </view>
+
     <!-- 操作按钮 -->
     <view class="action-row">
-      <button class="btn-primary" bindtap="onCopyHtml">📋 复制 HTML</button>
-    </view>
-    <view class="action-row">
-      <button class="btn-secondary" bindtap="onRetry">🔄 重新排版</button>
+      <button class="btn-copy" bindtap="onCopyHtml">📋 复制到公众号</button>
+      <button class="btn-retry" bindtap="onRetry">🔄 重排</button>
     </view>
   </view>
 </view>

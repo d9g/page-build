@@ -1,13 +1,12 @@
 /**
- * 排版结果页
- * 调用 AI 排版接口，展示预览结果
- * 支持：主题切换、快捷调整、复制 HTML
+ * 排版结果页 v4.0
+ *
+ * 双模式：快速排版（/layout/quick）/ 智能排版（/layout）
+ * 主题切换时向后端发请求重新渲染（不再前端替换颜色）
  */
 const { post, get } = require('../../utils/request')
 
-// NOTE: 加载阶段是纯 UI 反馈，与后端实际处理步骤无关
-// AI 排版通常耗时 30-120 秒，动画需要覆盖足够长的时间
-// 前 8 个阶段每 5 秒切换（共 40 秒），之后在 90% 处循环等待提示
+// NOTE: 加载阶段仅用于智能排版（AI 耗时长）
 const LOADING_STAGES = [
   { text: '正在分析文章结构...', hint: '识别段落、标题、引用', progress: 10 },
   { text: '正在提取关键内容...', hint: '理解文章主题与层次', progress: 20 },
@@ -19,32 +18,32 @@ const LOADING_STAGES = [
   { text: '即将完成...', hint: '正在做最终质量检查', progress: 85 },
 ]
 
-// 进度到 90% 后循环展示的等待提示（长文章 AI 响应慢时使用）
 const WAITING_HINTS = [
   { text: 'AI 还在努力中...', hint: '文章越长处理越慢，请耐心等待' },
   { text: '正在精雕细琢...', hint: '好的排版需要多一点时间' },
   { text: '快好了，再等等...', hint: 'AI 正在确保排版效果完美' },
-  { text: '还在处理中...', hint: '长文章通常需要 1-2 分钟' },
 ]
 
 Page({
   data: {
     loading: true,
-    loadingText: '正在分析文章结构...',
+    loadingText: '正在排版...',
     loadingHint: '',
     progress: 0,
     previewHtml: '',
     fullHtml: '',
-    sections: [],
     themes: [],
-    currentTheme: 'default',
-    // 快捷调整参数（lineHeight 为整数 14-26，实际应用时除以10）
-    fontSize: 15,
-    lineHeight: 18,
-    paragraphGap: 16,
+    currentTheme: 'shujuan',
+    mode: 'quick',
+    fontSize: 16,
+    lineHeight: 19,
+    letterSpacing: 3,
   },
 
   onLoad() {
+    const app = getApp()
+    const mode = app.globalData.layoutMode || 'quick'
+    this.setData({ mode })
     this.loadThemes()
     this.doLayout()
   },
@@ -59,7 +58,7 @@ Page({
     }
   },
 
-  /** 执行排版 */
+  /** 执行排版 — 根据模式选择不同接口 */
   async doLayout() {
     const app = getApp()
     const content = app.globalData.layoutContent
@@ -69,28 +68,33 @@ Page({
       return
     }
 
+    const { mode, currentTheme } = this.data
     this.setData({ loading: true, progress: 0 })
-    this._startProgressAnimation()
+
+    // NOTE: 智能排版才显示进度动画（快速排版毫秒级完成）
+    if (mode === 'ai') {
+      this._startProgressAnimation()
+      this.setData({ loadingText: '正在分析文章结构...' })
+    } else {
+      this.setData({ loadingText: '正在渲染排版...', progress: 50 })
+    }
 
     try {
-      const result = await post('/layout', {
+      const endpoint = mode === 'ai' ? '/layout' : '/layout/quick'
+      const result = await post(endpoint, {
         content,
-        options: { theme: this.data.currentTheme },
+        options: { theme: currentTheme },
       })
 
       this._stopProgressAnimation()
-
       this.setData({
         loading: false,
         progress: 100,
-        sections: result.sections || [],
         previewHtml: result.html || '',
         fullHtml: result.html || '',
       })
 
-      // 缓存排版内容，用于重排
       this._layoutContent = content
-      this._promptVersion = result.prompt_version
     } catch (err) {
       this._stopProgressAnimation()
       this.setData({ loading: false })
@@ -99,231 +103,98 @@ Page({
         content: err.message || '请稍后再试',
         confirmText: '重试',
         success: (res) => {
-          if (res.confirm) {
-            this.doLayout()
-          } else {
-            wx.navigateBack()
-          }
+          if (res.confirm) this.doLayout()
+          else wx.navigateBack()
         },
       })
     }
   },
 
-  /** 加载进度动画（主阶段 5 秒切换，播完后循环等待提示） */
-  _startProgressAnimation() {
-    let stageIndex = 0
-    // 立即显示第一阶段
-    this.setData({
-      loadingText: LOADING_STAGES[0].text,
-      loadingHint: LOADING_STAGES[0].hint,
-      progress: LOADING_STAGES[0].progress,
-    })
-    stageIndex = 1
-
-    // 主阶段：每 5 秒切换一次（8 个阶段 × 5 秒 = 40 秒覆盖）
-    this._progressTimer = setInterval(() => {
-      if (stageIndex < LOADING_STAGES.length) {
-        const stage = LOADING_STAGES[stageIndex]
-        this.setData({
-          loadingText: stage.text,
-          loadingHint: stage.hint,
-          progress: stage.progress,
-        })
-        stageIndex++
-      } else {
-        // 主阶段播完，切换到等待循环模式
-        clearInterval(this._progressTimer)
-        this._startWaitingLoop()
-      }
-    }, 5000)
-  },
-
   /**
-   * 等待循环：AI 响应慢时循环展示不同提示
-   * 
-   * 进度固定在 90%，每 8 秒换一条提示文案，
-   * 让用户知道系统没有卡死，只是 AI 处理需要时间。
-   */
-  _startWaitingLoop() {
-    let waitIndex = 0
-    this.setData({ progress: 90 })
-    this._progressTimer = setInterval(() => {
-      const hint = WAITING_HINTS[waitIndex % WAITING_HINTS.length]
-      this.setData({
-        loadingText: hint.text,
-        loadingHint: hint.hint,
-      })
-      waitIndex++
-    }, 8000)
-  },
-
-  _stopProgressAnimation() {
-    if (this._progressTimer) {
-      clearInterval(this._progressTimer)
-      this._progressTimer = null
-    }
-  },
-
-  /**
-   * 切换主题（纯本地操作，不调用 AI）
+   * 切换主题 — 向后端重新请求渲染
    *
-   * 去掉了 debounce：主题切换是单次点击事件不是连续滑动，
-   * 防抖只会徒增延迟，让用户觉得卡顿。
+   * v4.0 不再前端做颜色替换，而是用新主题重新渲染 Markdown，
+   * 确保预设样式（标题/引用/列表等）完全切换。
    */
-  onThemeChange(e) {
+  async onThemeChange(e) {
     const themeId = e.currentTarget.dataset.id
     if (themeId === this.data.currentTheme) return
 
-    const theme = this.data.themes.find(t => t.id === themeId)
-    if (theme && theme.is_premium) {
-      const unlocked = wx.getStorageSync(`theme_unlocked_${themeId}`)
-      if (!unlocked) {
-        wx.showModal({
-          title: '高级主题',
-          content: '观看一段短视频即可免费使用该主题',
-          confirmText: '去解锁',
-          success: (res) => {
-            if (res.confirm) {
-              wx.navigateTo({ url: `/pages/reward/reward?themeId=${themeId}` })
-            }
-          },
-        })
-        return
-      }
-    }
-
     this.setData({ currentTheme: themeId })
-    this._updatePreview()
-  },
 
-  /**
-   * 统一更新预览 HTML（核心管线）
-   *
-   * 每次都从 fullHtml（AI 原始输出，基于 default 主题）重新派生，
-   * 依次应用：主题颜色替换 → 快捷调整（字号/行高/段距），
-   * 保证两种操作可以互相叠加，不会互相覆盖。
-   */
-  _updatePreview() {
-    let html = this.data.fullHtml
-    if (!html) return
+    const app = getApp()
+    const content = app.globalData.layoutContent
+    if (!content) return
 
-    // 第一步：应用主题颜色
-    const theme = this.data.themes.find(t => t.id === this.data.currentTheme)
-    if (theme && theme.id !== 'default') {
-      html = this._applyThemeColors(html, theme.styles)
+    // 使用快速排版接口重新渲染（不管原始模式是什么，切主题只需本地渲染）
+    wx.showLoading({ title: '切换主题...' })
+    try {
+      const result = await post('/layout/quick', {
+        content: this._layoutContent || content,
+        options: { theme: themeId },
+      })
+      this.setData({
+        previewHtml: result.html || '',
+        fullHtml: result.html || '',
+      })
+    } catch (err) {
+      wx.showToast({ title: '切换失败', icon: 'none' })
+    } finally {
+      wx.hideLoading()
     }
-
-    // 第二步：应用快捷调整
-    html = this._applyQuickAdjust(html)
-
-    this.setData({ previewHtml: html })
-  },
-
-  /**
-   * 应用主题颜色到 HTML
-   *
-   * 将 default 主题的所有颜色值替换为目标主题的值。
-   * 覆盖标题色、正文色、强调色、背景色、引用色、代码色等全部属性。
-   * 始终基于 fullHtml（default 主题输出）做替换，保证主题可反复切换。
-   */
-  _applyThemeColors(html, targetStyles) {
-    if (!html || !targetStyles) return html
-
-    // NOTE: 这些是 default.json 主题中的实际颜色值
-    // 必须与 backend/themes/default.json 保持一致
-    const defaultToTarget = {
-      '#333333': targetStyles.h1_color,          // 标题色
-      '#3f3f3f': targetStyles.p_color,           // 正文色
-      '#07c160': targetStyles.strong_color,      // 强调色/边框/装饰/表头背景
-      '#f0faf4': targetStyles.blockquote_bg,     // 引用背景/h2背景
-      '#555555': targetStyles.blockquote_text_color, // 引用文字色
-      '#ffffff': targetStyles.bg_color,          // 全局背景
-      '#f5f5f5': targetStyles.code_bg,           // 代码背景
-      '#e74c3c': targetStyles.code_color,        // 代码颜色
-      '#e8e8e8': targetStyles.table_border_color, // 表格边框色
-      '#fafafa': targetStyles.table_row_bg,      // 表格行背景色
-    }
-
-    // 构建替换映射（只保留实际需要变更的颜色）
-    const colorMap = {}
-    const patterns = []
-    for (const [defaultColor, newColor] of Object.entries(defaultToTarget)) {
-      if (newColor && newColor.toLowerCase() !== defaultColor) {
-        colorMap[defaultColor] = newColor
-        // 转义 # 号以用于正则（虽然 # 不是特殊字符，但保持清晰）
-        patterns.push(defaultColor)
-      }
-    }
-
-    if (patterns.length === 0) return html
-
-    // 单次正则替换所有匹配的颜色值（不区分大小写）
-    const colorPattern = new RegExp(patterns.join('|'), 'gi')
-    return html.replace(colorPattern, (match) => {
-      return colorMap[match.toLowerCase()] || match
-    })
   },
 
   /** 字号调整 */
   onFontSizeChange(e) {
     this.setData({ fontSize: e.detail.value })
-    this._scheduleUpdate()
+    this._scheduleQuickRerender()
   },
 
   /** 行高调整 */
   onLineHeightChange(e) {
     this.setData({ lineHeight: e.detail.value })
-    this._scheduleUpdate()
+    this._scheduleQuickRerender()
   },
 
-  /** 段距调整 */
-  onParagraphGapChange(e) {
-    this.setData({ paragraphGap: e.detail.value })
-    this._scheduleUpdate()
+  /** 字间距调整 */
+  onLetterSpacingChange(e) {
+    this.setData({ letterSpacing: e.detail.value })
+    this._scheduleQuickRerender()
   },
 
   /**
-   * 防抖调度器：200ms 内多次滑动只执行一次 HTML 更新
+   * 防抖重渲染：滑块调整后重新调后端渲染
    *
-   * 不使用 debounce 包装是因为 setTimeout 内部 this 指向不确定，
-   * 直接在方法内用箭头函数保持 this 上下文。
+   * 将 fontSize/lineHeight/letterSpacing 的调整值
+   * 通过 options 传给后端，后端用调整后的参数重新渲染。
    */
-  _scheduleUpdate() {
+  _scheduleQuickRerender() {
     if (this._adjustTimer) clearTimeout(this._adjustTimer)
-    this._adjustTimer = setTimeout(() => {
-      this._updatePreview()
-    }, 200)
-  },
+    this._adjustTimer = setTimeout(async () => {
+      const app = getApp()
+      const content = this._layoutContent || app.globalData.layoutContent
+      if (!content) return
 
-  /**
-   * 应用快捷调整（字号/行高/段距）
-   *
-   * 基于 fullHtml（AI 原始输出，default 主题）做替换，
-   * 每次都从原始值替换到目标值，保证可重复切换。
-   *
-   * NOTE: 正则中用 \s* 兼容 BeautifulSoup/lxml 清洗后
-   * 可能在 CSS 冒号后插入空格的情况
-   */
-  _applyQuickAdjust(html) {
-    const { fontSize, lineHeight, paragraphGap } = this.data
-    const actualLineHeight = lineHeight / 10
+      const { currentTheme, fontSize, lineHeight, letterSpacing } = this.data
 
-    // 替换正文字号（默认 15px），不影响标题和代码
-    if (fontSize !== 15) {
-      html = html.replace(/font-size:\s*15px/g, `font-size:${fontSize}px`)
-    }
-
-    // 替换正文行高（默认 1.8），不影响标题和装饰元素
-    if (actualLineHeight !== 1.8) {
-      html = html.replace(/line-height:\s*1\.8\b/g, `line-height:${actualLineHeight}`)
-    }
-
-    // 替换段落间距（默认 margin:0 0 16px）
-    if (paragraphGap !== 16) {
-      html = html.replace(/margin:\s*0\s+0\s+16px/g, `margin:0 0 ${paragraphGap}px`)
-    }
-
-    return html
+      try {
+        const result = await post('/layout/quick', {
+          content,
+          options: {
+            theme: currentTheme,
+            fontSize,
+            lineHeight: lineHeight / 10,
+            letterSpacing: letterSpacing / 10,
+          },
+        })
+        this.setData({
+          previewHtml: result.html || '',
+          fullHtml: result.html || '',
+        })
+      } catch (err) {
+        console.error('调整渲染失败', err)
+      }
+    }, 500)
   },
 
   /** 复制 HTML */
@@ -336,7 +207,7 @@ Page({
     wx.setClipboardData({
       data: html,
       success: () => {
-        wx.showToast({ title: '已复制到剪贴板', icon: 'success' })
+        wx.showToast({ title: '已复制，去公众号粘贴', icon: 'success' })
       },
     })
   },
@@ -346,23 +217,59 @@ Page({
     this.setData({
       previewHtml: '',
       fullHtml: '',
-      sections: [],
-      fontSize: 15,
-      lineHeight: 18,
-      paragraphGap: 16,
+      fontSize: 16,
+      lineHeight: 19,
+      letterSpacing: 3,
     })
     this.doLayout()
   },
 
-  /** 返回首页 */
-  onGoBack() {
-    wx.navigateBack()
+  // ===== 进度动画（仅智能排版使用） =====
+  _startProgressAnimation() {
+    let stageIndex = 0
+    this.setData({
+      loadingText: LOADING_STAGES[0].text,
+      loadingHint: LOADING_STAGES[0].hint,
+      progress: LOADING_STAGES[0].progress,
+    })
+    stageIndex = 1
+
+    this._progressTimer = setInterval(() => {
+      if (stageIndex < LOADING_STAGES.length) {
+        const stage = LOADING_STAGES[stageIndex]
+        this.setData({
+          loadingText: stage.text,
+          loadingHint: stage.hint,
+          progress: stage.progress,
+        })
+        stageIndex++
+      } else {
+        clearInterval(this._progressTimer)
+        this._startWaitingLoop()
+      }
+    }, 5000)
   },
 
-  /** 分享配置 */
+  _startWaitingLoop() {
+    let waitIndex = 0
+    this.setData({ progress: 90 })
+    this._progressTimer = setInterval(() => {
+      const hint = WAITING_HINTS[waitIndex % WAITING_HINTS.length]
+      this.setData({ loadingText: hint.text, loadingHint: hint.hint })
+      waitIndex++
+    }, 8000)
+  },
+
+  _stopProgressAnimation() {
+    if (this._progressTimer) {
+      clearInterval(this._progressTimer)
+      this._progressTimer = null
+    }
+  },
+
   onShareAppMessage() {
     return {
-      title: '公众号文章一键 AI 排版，效果超赞！',
+      title: '公众号排版工具 — 一键美化文章格式',
       path: '/pages/index/index',
     }
   },

@@ -1,0 +1,30 @@
+{
+  "id": "gufeng",
+  "name": "古风玄幻",
+  "desc": "修仙/玄幻小说",
+  "category": "小说",
+  "global": {
+    "bg": "#FFFDF5",
+    "ink": "#4A3728",
+    "brand": "#C9A96E",
+    "brandSoft": "#F5EDD8",
+    "fontFamily": "serif-zh",
+    "maxWidth": 335
+  },
+  "h1": { "preset": "doubleline", "color": "#C9A96E", "fontSize": 22 },
+  "h2": { "preset": "leftbar", "color": "#C9A96E", "fontSize": 19 },
+  "h3": { "preset": "emojispark", "color": "#C9A96E", "fontSize": 17 },
+  "h4": { "preset": "caret", "color": "#4A3728", "fontSize": 16 },
+  "p":  { "preset": "indent", "color": "#4A3728", "fontSize": 16, "lineHeight": 1.9, "letterSpacing": 0.5 },
+  "blockquote": { "preset": "center", "textColor": "#6B5D4F", "bgColor": "#F5EDD8", "fontSize": 15 },
+  "pre": { "preset": "warm-paper" },
+  "code": { "preset": "pill-soft", "color": "#C9A96E", "bgColor": "#F5EDD8" },
+  "ul": { "preset": "star", "color": "#C9A96E" },
+  "ol": { "preset": "chinese", "color": "#C9A96E" },
+  "a": { "preset": "dashed", "color": "#C9A96E" },
+  "img": { "preset": "bordered" },
+  "hr": { "preset": "diamond", "color": "#C9A96E" },
+  "table": { "preset": "softbg", "color": "#C9A96E", "bgColor": "#F5EDD8" },
+  "bold": { "color": "#C9A96E" },
+  "italic": { "color": "#8B7355" }
+}

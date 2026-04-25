@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-排版业务逻辑
+排版业务逻辑 v4.0
 
-架构 v3.0：AI 返回 Markdown → mistune 渲染器 → 主题化内联样式 HTML
-支持 provider + model 双维度选择 AI 模型
+双模式：
+- do_quick_layout(): 快速排版，纯本地 Markdown → HTML
+- do_layout():       智能排版，AI 润色 → Markdown → HTML
 """
 import json
 import re
@@ -20,19 +21,14 @@ from config import settings
 logger = logging.getLogger(__name__)
 
 
-# ===== 主题管理（从 JSON 文件加载） =====
+# ===== 主题管理 =====
 
 THEMES_DIR = Path(__file__).parent.parent / "themes"
 _themes_cache: dict[str, dict] = {}
 
 
 def load_all_themes() -> dict[str, dict]:
-    """
-    从 backend/themes/ 目录加载所有 JSON 主题文件
-
-    每个 JSON 文件定义一个主题，文件名即主题 ID。
-    启动后缓存在内存中，重启服务刷新。
-    """
+    """从 backend/themes/ 加载所有 JSON 主题"""
     global _themes_cache
     if _themes_cache:
         return _themes_cache
@@ -57,9 +53,14 @@ def load_all_themes() -> dict[str, dict]:
 
 
 def get_theme(theme_id: str) -> dict:
-    """获取指定主题，不存在则返回 default"""
+    """获取指定主题，不存在则返回暖棕书卷（默认）"""
     themes = load_all_themes()
-    return themes.get(theme_id, themes.get("default", {}))
+    return themes.get(theme_id, themes.get("shujuan", {}))
+
+
+def get_all_themes() -> list[dict]:
+    """获取所有主题列表"""
+    return list(load_all_themes().values())
 
 
 # ===== 输入处理 =====
@@ -83,37 +84,59 @@ def validate_input(content: str) -> Optional[str]:
     return None
 
 
-# ===== 核心排版流程 =====
-
 def clean_markdown_output(ai_text: str) -> str:
-    """
-    清理 AI 返回的 Markdown 文本
-
-    AI 有时会在输出前后加上 ```markdown 代码块标记，
-    需要去掉这些不需要的包裹。
-    """
+    """清理 AI 返回的 Markdown（去掉 ```markdown 包裹）"""
     text = ai_text.strip()
-
-    # 去掉 ```markdown ... ``` 包裹
     if text.startswith("```"):
         first_newline = text.find('\n')
         if first_newline != -1:
             text = text[first_newline + 1:]
     if text.endswith("```"):
         text = text[:-3]
-
     return text.strip()
 
 
-async def do_layout(
-    content: str,
-    theme_id: str = "default",
-) -> dict:
-    """
-    执行排版（v3.0 Markdown 架构）
+# ===== 快速排版（不调 AI） =====
 
-    模型和厂商从 settings.AI_PROVIDER / settings.AI_MODEL 读取，
-    切换模型只需改 .env，无需改代码。
+def do_quick_layout(content: str, theme_id: str = "shujuan") -> dict:
+    """
+    快速排版 — 纯本地渲染
+
+    直接将用户输入当 Markdown 解析，用预设主题渲染。
+    不消耗 API 额度，毫秒级响应。
+    """
+    start_time = time.time()
+
+    content = clean_input(content)
+    error = validate_input(content)
+    if error:
+        raise ValueError(error)
+
+    theme = get_theme(theme_id)
+    html = render_markdown_to_html(content, theme)
+    html = sanitize_html_for_wechat(html)
+
+    process_time_ms = int((time.time() - start_time) * 1000)
+    logger.info(f"快速排版完成 | 字数: {len(content)} | 主题: {theme_id} | {process_time_ms}ms")
+
+    return {
+        "sections": [],
+        "html": html,
+        "suggested_theme": theme_id,
+        "word_count": len(content),
+        "process_time": f"{process_time_ms}ms",
+        "process_time_ms": process_time_ms,
+        "mode": "quick",
+    }
+
+
+# ===== 智能排版（调 AI） =====
+
+async def do_layout(content: str, theme_id: str = "shujuan") -> dict:
+    """
+    智能排版 — AI 润色 + 本地渲染
+
+    AI 自动识别文本结构 → 转 Markdown → 预设主题渲染。
     """
     start_time = time.time()
 
@@ -125,14 +148,10 @@ async def do_layout(
     provider = settings.AI_PROVIDER
     model = settings.AI_MODEL
 
-    # 加载 Prompt
     system_prompt, prompt_version = prompt_manager.get_system_prompt()
     user_prompt = prompt_manager.get_user_prompt(content)
 
-    # 调用 AI（返回 Markdown）
-    logger.info(
-        f"开始排版 | 字数: {len(content)} | {provider}/{model} | Prompt: {prompt_version}"
-    )
+    logger.info(f"智能排版开始 | 字数: {len(content)} | {provider}/{model}")
     response = await call_ai_model(
         system_prompt=system_prompt,
         user_content=user_prompt,
@@ -142,21 +161,16 @@ async def do_layout(
 
     ai_text = extract_content(response)
     usage = extract_usage(response)
-
-    # 清理 AI 输出的 Markdown
     markdown_text = clean_markdown_output(ai_text)
 
-    # 加载主题 + 渲染 Markdown → HTML
     theme = get_theme(theme_id)
     html = render_markdown_to_html(markdown_text, theme)
-
-    # 微信兼容性最终清洗
     html = sanitize_html_for_wechat(html)
 
     process_time_ms = int((time.time() - start_time) * 1000)
     process_time_str = f"{process_time_ms / 1000:.1f}s"
 
-    logger.info(f"排版完成 | 耗时: {process_time_str} | {provider}/{model}")
+    logger.info(f"智能排版完成 | 耗时: {process_time_str} | {provider}/{model}")
 
     return {
         "sections": [],
@@ -168,9 +182,5 @@ async def do_layout(
         "prompt_version": prompt_version,
         "ai_model": f"{provider}/{model}",
         "ai_tokens_used": usage.get("total_tokens", 0),
+        "mode": "ai",
     }
-
-
-def get_all_themes() -> list[dict]:
-    """获取所有主题"""
-    return list(load_all_themes().values())

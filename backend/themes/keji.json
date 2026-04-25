@@ -1,0 +1,30 @@
+{
+  "id": "keji",
+  "name": "科技蓝调",
+  "desc": "互联网/产品/技术",
+  "category": "通用",
+  "global": {
+    "bg": "#FFFFFF",
+    "ink": "#1E293B",
+    "brand": "#2563EB",
+    "brandSoft": "#DBEAFE",
+    "fontFamily": "sans-zh",
+    "maxWidth": 335
+  },
+  "h1": { "preset": "softcard", "color": "#2563EB", "fontSize": 22 },
+  "h2": { "preset": "leftbar", "color": "#2563EB", "fontSize": 19 },
+  "h3": { "preset": "arrow", "color": "#2563EB", "fontSize": 17 },
+  "h4": { "preset": "plain", "color": "#1E293B", "fontSize": 16 },
+  "p":  { "preset": "normal", "color": "#1E293B", "fontSize": 16, "lineHeight": 1.8, "letterSpacing": 0.2 },
+  "blockquote": { "preset": "notice", "textColor": "#334155", "bgColor": "#EFF6FF", "fontSize": 15 },
+  "pre": { "preset": "github-light" },
+  "code": { "preset": "pill-soft", "color": "#2563EB", "bgColor": "#DBEAFE" },
+  "ul": { "preset": "arrow", "color": "#2563EB" },
+  "ol": { "preset": "arabic", "color": "#2563EB" },
+  "a": { "preset": "underline", "color": "#2563EB" },
+  "img": { "preset": "shadow" },
+  "hr": { "preset": "gradient", "color": "#2563EB" },
+  "table": { "preset": "zebra", "color": "#2563EB", "bgColor": "#F1F5F9" },
+  "bold": { "color": "#2563EB" },
+  "italic": { "color": "#334155" }
+}

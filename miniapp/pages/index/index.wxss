@@ -1,4 +1,4 @@
-/* 首页样式 */
+/* 首页样式 v4.0 */
 .header {
   text-align: center;
   padding: 40rpx 0 24rpx;
@@ -50,8 +50,65 @@
 .draft-btn { color: #07C160; font-weight: bold; }
 .draft-btn.dismiss { color: #999; font-weight: normal; }
 
-/* 排版按钮 */
-.layout-btn { margin: 32rpx 0; }
+/* 双按钮区域 */
+.btn-group {
+  display: flex;
+  gap: 20rpx;
+  margin: 32rpx 0 16rpx;
+}
+.btn-quick,
+.btn-ai {
+  flex: 1;
+  height: 88rpx;
+  line-height: 88rpx;
+  border-radius: 44rpx;
+  font-size: 30rpx;
+  font-weight: 600;
+  text-align: center;
+  border: none;
+}
+.btn-quick {
+  background: linear-gradient(135deg, #07C160, #06ad56);
+  color: #fff;
+}
+.btn-ai {
+  background: linear-gradient(135deg, #2563EB, #1d4ed8);
+  color: #fff;
+}
+.btn-quick[disabled],
+.btn-ai[disabled] {
+  background: #e0e0e0;
+  color: #999;
+}
+
+/* 模式说明 */
+.mode-desc {
+  padding: 0 8rpx;
+}
+.mode-item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12rpx;
+}
+.mode-tag {
+  font-size: 20rpx;
+  padding: 2rpx 12rpx;
+  border-radius: 6rpx;
+  margin-right: 12rpx;
+  font-weight: 600;
+}
+.mode-tag.quick {
+  background: #e6f7ee;
+  color: #07C160;
+}
+.mode-tag.ai {
+  background: #e8f0fe;
+  color: #2563EB;
+}
+.mode-text {
+  font-size: 24rpx;
+  color: #999;
+}
 
 /* 提示文字 */
-.hint { display: block; text-align: center; font-size: 24rpx; color: #f5222d; }
+.hint { display: block; text-align: center; font-size: 24rpx; color: #f5222d; margin-top: 16rpx; }

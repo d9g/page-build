@@ -7,6 +7,7 @@ GET  /api/v1/wechat/callback/{account_id} — 微信服务器验证
 所有公众号共用同一个后端，通过 URL 路径参数 account_id 区分
 """
 import logging
+import os
 from fastapi import APIRouter, Request, HTTPException, Query
 from fastapi.responses import PlainTextResponse
 from services.wechat_service import (
@@ -99,7 +100,10 @@ async def wechat_callback(account_id: str, request: Request):
         return "success"
 
     # 处理文本消息
-    if msg.msg_type == "text" and msg.content.strip() == settings.VERIFY_KEYWORD:
+    content = msg.content.strip() if msg.msg_type == "text" else ""
+
+    # NOTE: 排版工具验证码
+    if content == settings.VERIFY_KEYWORD:
         redis_client = getattr(request.app.state, "redis", None)
         code = await generate_verify_code(
             account_id=account_id,
@@ -113,13 +117,27 @@ async def wechat_callback(account_id: str, request: Request):
         )
         return reply
 
+    # NOTE: 知识漫画生成器激活码（固定码，通过环境变量可配）
+    comic_keyword = os.environ.get("COMIC_VERIFY_KEYWORD", "激活")
+    comic_code = os.environ.get("COMIC_VERIFY_CODE", "MKPIC2026")
+    if content == comic_keyword:
+        logger.info(f"漫画激活码请求 | account={account_id} | openid={msg.from_user[:8]}...")
+        reply = build_text_reply(
+            msg,
+            f"🎨 知识漫画生成器使用码：{comic_code}\n\n"
+            f"打开漫画生成器，输入此使用码即可免费使用！",
+        )
+        return reply
+
     # 处理关注事件：推送欢迎语
     if msg.msg_type == "event" and msg.event.lower() == "subscribe":
         logger.info(f"用户关注 | account={account_id} | openid={msg.from_user[:8]}...")
+        comic_kw = os.environ.get("COMIC_VERIFY_KEYWORD", "激活")
         reply = build_text_reply(
             msg,
             f"欢迎关注 {account.get('name', '')}！\n\n"
-            f"回复「{settings.VERIFY_KEYWORD}」获取小程序验证码",
+            f"回复「{settings.VERIFY_KEYWORD}」获取排版验证码\n"
+            f"回复「{comic_kw}」获取漫画生成使用码",
         )
         return reply
 

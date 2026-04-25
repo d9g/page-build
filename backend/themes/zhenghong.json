@@ -1,0 +1,30 @@
+{
+  "id": "zhenghong",
+  "name": "正红宣调",
+  "desc": "节庆/党建/品牌",
+  "category": "通用",
+  "global": {
+    "bg": "#FFFFFF",
+    "ink": "#5C0F0F",
+    "brand": "#C41E3A",
+    "brandSoft": "#FCE8E8",
+    "fontFamily": "serif-zh",
+    "maxWidth": 335
+  },
+  "h1": { "preset": "doubleline", "color": "#C41E3A", "fontSize": 22 },
+  "h2": { "preset": "leftbar", "color": "#C41E3A", "fontSize": 19 },
+  "h3": { "preset": "underline", "color": "#C41E3A", "fontSize": 17 },
+  "h4": { "preset": "plain", "color": "#7F1D1D", "fontSize": 16 },
+  "p":  { "preset": "normal", "color": "#5C0F0F", "fontSize": 16, "lineHeight": 1.85, "letterSpacing": 0.3 },
+  "blockquote": { "preset": "leftbar-bg", "textColor": "#7F1D1D", "bgColor": "#FEF2F2", "fontSize": 15 },
+  "pre": { "preset": "warm-paper" },
+  "code": { "preset": "pill-soft", "color": "#C41E3A", "bgColor": "#FCE8E8" },
+  "ul": { "preset": "diamond", "color": "#C41E3A" },
+  "ol": { "preset": "circled", "color": "#C41E3A" },
+  "a": { "preset": "dashed", "color": "#C41E3A" },
+  "img": { "preset": "bordered" },
+  "hr": { "preset": "gradient", "color": "#C41E3A" },
+  "table": { "preset": "softbg", "color": "#C41E3A", "bgColor": "#FCE8E8" },
+  "bold": { "color": "#C41E3A" },
+  "italic": { "color": "#6B2424" }
+}

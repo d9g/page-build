@@ -1,0 +1,30 @@
+{
+  "id": "jijian",
+  "name": "黑白极简",
+  "desc": "科普/专业/知识类",
+  "category": "通用",
+  "global": {
+    "bg": "#FFFFFF",
+    "ink": "#1A1A1A",
+    "brand": "#1A1A1A",
+    "brandSoft": "#F0F0F0",
+    "fontFamily": "sans-zh",
+    "maxWidth": 335
+  },
+  "h1": { "preset": "plain", "color": "#1A1A1A", "fontSize": 22 },
+  "h2": { "preset": "shortbar", "color": "#1A1A1A", "fontSize": 19 },
+  "h3": { "preset": "plain", "color": "#1A1A1A", "fontSize": 17 },
+  "h4": { "preset": "caps", "color": "#555555", "fontSize": 13 },
+  "p":  { "preset": "normal", "color": "#1A1A1A", "fontSize": 16, "lineHeight": 1.8, "letterSpacing": 0.2 },
+  "blockquote": { "preset": "leftbar-bg", "textColor": "#555555", "bgColor": "#F5F5F5", "fontSize": 15 },
+  "pre": { "preset": "subtle-border" },
+  "code": { "preset": "grey-ink", "color": "#1A1A1A", "bgColor": "#F0F0F0" },
+  "ul": { "preset": "dash", "color": "#1A1A1A" },
+  "ol": { "preset": "arabic", "color": "#1A1A1A" },
+  "a": { "preset": "underline", "color": "#1A1A1A" },
+  "img": { "preset": "plain" },
+  "hr": { "preset": "thin", "color": "#CCCCCC" },
+  "table": { "preset": "borderless", "color": "#1A1A1A", "bgColor": "#FAFAFA" },
+  "bold": { "color": "#000000" },
+  "italic": { "color": "#555555" }
+}
