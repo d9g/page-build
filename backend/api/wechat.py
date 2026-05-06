@@ -123,8 +123,8 @@ async def wechat_callback(account_id: str, request: Request):
 
     # NOTE: 知识漫画生成器激活码（固定码，通过环境变量可配）
     comic_keyword = os.environ.get("COMIC_VERIFY_KEYWORD", "激活")
-    comic_code = os.environ.get("COMIC_VERIFY_CODE", "MKPIC2026")
-    if content == comic_keyword:
+    comic_code = os.environ.get("COMIC_VERIFY_CODE", "")
+    if content == comic_keyword and comic_code:
         logger.info(f"漫画激活码请求 | account={account_id} | openid={msg.from_user[:8]}...")
         reply = build_text_reply(
             msg,

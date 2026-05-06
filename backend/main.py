@@ -66,12 +66,31 @@ async def lifespan(app: FastAPI):
     for acc in pool:
         logger.info(f"   - {acc['name']} ({acc['id']})")
 
+    # 启动内存降级存储定时清理（每10分钟）
+    import asyncio as _asyncio
+    from services.auth_service import cleanup_expired_sessions
+    from services.verify_service import cleanup_expired_codes
+
+    async def _periodic_cleanup():
+        while True:
+            await _asyncio.sleep(600)  # 10 分钟
+            try:
+                await cleanup_expired_sessions()
+                await cleanup_expired_codes()
+            except Exception as e:
+                logger.warning(f"定时清理异常: {e}")
+
+    app.state._cleanup_task = _asyncio.create_task(_periodic_cleanup())
+
     logger.info(f"✅ 服务地址: http://{settings.SERVER_HOST}:{settings.SERVER_PORT}")
     logger.info("=" * 50)
 
     yield
 
     # 关闭时
+    cleanup_task = getattr(app.state, '_cleanup_task', None)
+    if cleanup_task:
+        cleanup_task.cancel()
     if app.state.redis:
         await app.state.redis.close()
     await db.close()

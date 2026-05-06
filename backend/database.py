@@ -114,20 +114,21 @@ class Database:
     ) -> dict:
         """
         创建或更新用户
-        首次登录创建用户记录，后续登录更新 session_key
+        首次登录创建用户记录，后续登录更新时间
+        注意：session_key 不持久化到数据库，仅存 Redis（安全要求）
         """
         user = await self.get_user_by_openid(openid)
         if user:
             await self._db.execute(
-                "UPDATE users SET session_key = ?, updated_at = ? WHERE openid = ?",
-                (session_key, datetime.now().isoformat(), openid),
+                "UPDATE users SET updated_at = ? WHERE openid = ?",
+                (datetime.now().isoformat(), openid),
             )
             await self._db.commit()
             return await self.get_user_by_openid(openid)
 
         await self._db.execute(
             "INSERT INTO users (openid, session_key) VALUES (?, ?)",
-            (openid, session_key),
+            (openid, ""),  # session_key 不持久化，留空
         )
         await self._db.commit()
         return await self.get_user_by_openid(openid)

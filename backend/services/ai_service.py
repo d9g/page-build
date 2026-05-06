@@ -12,6 +12,9 @@ import httpx
 import json
 import logging
 import os
+import time
+import asyncio
+from pathlib import Path
 from config import settings
 
 logger = logging.getLogger(__name__)
@@ -84,6 +87,7 @@ async def call_ai_model(
     provider: str = DEFAULT_PROVIDER,
     max_tokens: int = 4096,
     temperature: float = 0.1,
+    max_retries: int = 2,
 ) -> dict:
     """
     统一 AI 模型调用接口
@@ -95,6 +99,7 @@ async def call_ai_model(
         provider: 厂商 ID（zhipu / dashscope）
         max_tokens: 最大输出 token 数
         temperature: 随机性（排版场景建议 0.1）
+        max_retries: 最大重试次数（仅对 429/500/502/503 重试）
 
     Returns:
         完整的 API 响应 dict
@@ -103,25 +108,70 @@ async def call_ai_model(
 
     logger.info(f"AI 调用 | 厂商: {provider} | 模型: {model} | 输入长度: {len(user_content)}")
 
-    async with httpx.AsyncClient(timeout=180.0) as client:
-        response = await client.post(
-            api_url,
-            headers={
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {api_key}",
-            },
-            json={
-                "model": model,
-                "messages": [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_content},
-                ],
-                "temperature": temperature,
-                "max_tokens": max_tokens,
-            },
-        )
-        response.raise_for_status()
+    # 可重试的 HTTP 状态码
+    RETRYABLE_STATUS = {429, 500, 502, 503}
+
+    timeout = httpx.Timeout(60.0, connect=10.0, read=50.0)
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        last_exception = None
+        for attempt in range(max_retries + 1):
+            try:
+                response = await client.post(
+                    api_url,
+                    headers={
+                        "Content-Type": "application/json",
+                        "Authorization": f"Bearer {api_key}",
+                    },
+                    json={
+                        "model": model,
+                        "messages": [
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": user_content},
+                        ],
+                        "temperature": temperature,
+                        "max_tokens": max_tokens,
+                    },
+                )
+                response.raise_for_status()
+                break  # 成功，跳出重试循环
+            except httpx.HTTPStatusError as e:
+                last_exception = e
+                status_code = e.response.status_code
+                if status_code in RETRYABLE_STATUS and attempt < max_retries:
+                    wait = 2 ** attempt  # 指数退避: 1s, 2s
+                    logger.warning(
+                        f"AI 请求失败 ({status_code})，{wait}s 后重试 "
+                        f"({attempt + 1}/{max_retries})"
+                    )
+                    await asyncio.sleep(wait)
+                    continue
+                raise
+            except (httpx.ConnectError, httpx.ReadTimeout) as e:
+                last_exception = e
+                if attempt < max_retries:
+                    wait = 2 ** attempt
+                    logger.warning(f"AI 连接异常，{wait}s 后重试 ({attempt + 1}/{max_retries})")
+                    await asyncio.sleep(wait)
+                    continue
+                raise
+
         result = response.json()
+
+        # 保存原始 AI 响应（调试用，自动清理过期文件）
+        try:
+            log_dir = Path("/tmp/page-build-debug")
+            log_dir.mkdir(parents=True, exist_ok=True)
+            # 清理 24 小时前的日志
+            import time as _time
+            cutoff = _time.time() - 86400
+            for f in log_dir.iterdir():
+                if f.is_file() and f.stat().st_mtime < cutoff:
+                    f.unlink()
+            timestamp = time.strftime("%Y%m%d_%H%M%S")
+            log_file = log_dir / f"{timestamp}_00_api_response.json"
+            log_file.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
+        except Exception:
+            pass
 
         # 记录 token 使用量
         usage = result.get("usage", {})

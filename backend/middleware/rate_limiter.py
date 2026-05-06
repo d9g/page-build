@@ -68,7 +68,19 @@ async def check_rate_limit(
         count = len(_memory_records[key])
 
     if count > limit:
-        remaining_seconds = int(window - (now - _memory_records.get(key, [now])[0]))
+        # 计算窗口中最早请求的剩余时间
+        if redis_client:
+            # Redis 模式：最早记录的过期时间
+            earliest = await redis_client.zrange(key, 0, 0, withscores=True)
+            if earliest:
+                remaining_seconds = int(window - (now - earliest[0][1]))
+            else:
+                remaining_seconds = window
+        else:
+            # 内存模式：排序后取最早的
+            records = sorted(_memory_records.get(key, [now]))
+            remaining_seconds = int(window - (now - records[0])) if records else window
+        remaining_seconds = max(remaining_seconds, 1)  # 至少1秒
         logger.warning(
             f"频率限制触发 | openid={openid[:8]}... | action={action} | "
             f"count={count}/{limit}"

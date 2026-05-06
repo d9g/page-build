@@ -105,14 +105,12 @@ class UserStatusResponse(BaseModel):
 
 class SwitchAccountRequest(BaseModel):
     """切换推广账号请求"""
-    admin_key: str = Field(..., description="管理员密钥")
     account_id: str = Field(..., description="目标公众号 ID")
     reason: Optional[str] = Field(default=None, description="切换原因备注")
 
 
 class SwitchPromptRequest(BaseModel):
     """切换 Prompt 版本请求"""
-    admin_key: str = Field(..., description="管理员密钥")
     version: str = Field(..., description="目标 Prompt 版本号")
 
 

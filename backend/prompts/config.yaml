@@ -1,3 +1,7 @@
-active_version: "v3.0"
-ab_test:
-  enabled: false
+active_version: "v4.1"
+available_versions:
+  - "v1.0"
+  - "v2.0"
+  - "v3.0"
+  - "v4.0"
+  - "v4.1"

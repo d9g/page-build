@@ -116,6 +116,17 @@ async def get_session(
         return json.loads(entry["data"])
 
 
+async def cleanup_expired_sessions():
+    """清理过期的内存 session（Redis 不可用时由定时任务调用）"""
+    if _memory_sessions:
+        now = time.time()
+        expired = [k for k, v in _memory_sessions.items() if now > v["expires_at"]]
+        for k in expired:
+            del _memory_sessions[k]
+        if expired:
+            logger.info(f"清理过期 session: {len(expired)} 个")
+
+
 async def get_openid_from_token(
     token: str,
     redis_client=None,

@@ -8,6 +8,7 @@
 import hashlib
 import time
 import logging
+from defusedxml.ElementTree import fromstring as _xml_fromstring
 from xml.etree import ElementTree as ET
 from typing import Optional
 from dataclasses import dataclass
@@ -59,7 +60,7 @@ def parse_wechat_message(xml_body: bytes) -> WechatMessage:
     """
     msg = WechatMessage()
     try:
-        root = ET.fromstring(xml_body)
+        root = _xml_fromstring(xml_body)
         
         # 检查是否加密消息
         encrypt = _get_xml_text(root, "Encrypt")

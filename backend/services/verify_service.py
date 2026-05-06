@@ -97,6 +97,18 @@ async def validate_verify_code(
     return info
 
 
+async def cleanup_expired_codes():
+    """清理过期的内存验证码（Redis 不可用时由定时任务调用）"""
+    if _memory_codes:
+        import time as _time
+        now = _time.time()
+        expired = [k for k, v in _memory_codes.items() if now > v["expires_at"]]
+        for k in expired:
+            del _memory_codes[k]
+        if expired:
+            logger.info(f"清理过期验证码: {len(expired)} 个")
+
+
 async def get_active_account_id(redis_client=None) -> str:
     """
     获取当前激活推广的公众号 ID

@@ -14,6 +14,7 @@ from models.schemas import LayoutRequest, LayoutResponse, ErrorResponse
 from services.layout_service import do_layout, do_quick_layout, get_all_themes
 from services.auth_service import get_openid_from_token
 from middleware.rate_limiter import check_rate_limit
+from database import db
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1", tags=["排版"])
@@ -42,6 +43,11 @@ async def quick_layout(
     if not openid:
         raise HTTPException(status_code=401, detail="登录已过期")
 
+    # 校验用户是否已验证关注
+    verified = await db.check_user_verified(openid)
+    if not verified:
+        raise HTTPException(status_code=403, detail="请先关注公众号并完成验证")
+
     try:
         theme_id = "shujuan"
         if request.options:
@@ -51,6 +57,20 @@ async def quick_layout(
             content=request.content,
             theme_id=theme_id,
         )
+
+        # 保存排版记录
+        user = await db.get_user_by_openid(openid)
+        if user:
+            await db.save_layout_record(
+                user_id=user["id"],
+                input_text=request.content,
+                output_html=result["html"],
+                theme=theme_id,
+                ai_model="local",
+                ai_tokens_used=0,
+                process_time_ms=result.get("process_time_ms", 0),
+                prompt_version="local",
+            )
 
         return LayoutResponse(
             sections=[],
@@ -96,6 +116,11 @@ async def layout(
     if not openid:
         raise HTTPException(status_code=401, detail="登录已过期")
 
+    # 校验用户是否已验证关注
+    verified = await db.check_user_verified(openid)
+    if not verified:
+        raise HTTPException(status_code=403, detail="请先关注公众号并完成验证")
+
     try:
         await check_rate_limit(openid, "layout", redis_client=redis_client)
 
@@ -107,6 +132,20 @@ async def layout(
             content=request.content,
             theme_id=theme_id,
         )
+
+        # 保存排版记录
+        user = await db.get_user_by_openid(openid)
+        if user:
+            await db.save_layout_record(
+                user_id=user["id"],
+                input_text=request.content,
+                output_html=result["html"],
+                theme=theme_id,
+                ai_model=result.get("ai_model", ""),
+                ai_tokens_used=result.get("ai_tokens_used", 0),
+                process_time_ms=result.get("process_time_ms", 0),
+                prompt_version=result.get("prompt_version", ""),
+            )
 
         return LayoutResponse(
             sections=[],

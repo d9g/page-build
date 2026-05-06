@@ -119,10 +119,15 @@ class PromptManager:
         """
         构建 User Prompt
         将用户输入填充到模板中
+        使用单次替换避免模板注入
         """
         prompt_data, _ = self.get_active_prompt()
         template = prompt_data.get("user_prompt_template", "请对以下文章进行排版：\n\n{content}")
-        return template.replace("{content}", content)
+        # 只替换第一个 {content}，避免用户输入中的花括号匹配模板占位符
+        parts = template.split("{content}", 1)
+        if len(parts) == 2:
+            return parts[0] + content + parts[1]
+        return template
 
     def list_versions(self) -> list[dict]:
         """列出所有可用的 Prompt 版本"""

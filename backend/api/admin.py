@@ -7,7 +7,8 @@
 import os
 import logging
 from datetime import datetime, timedelta
-from fastapi import APIRouter, HTTPException, Request
+from typing import Optional
+from fastapi import APIRouter, HTTPException, Request, Header
 from models.schemas import SwitchAccountRequest, SwitchPromptRequest
 from services.verify_service import get_active_account_id, set_active_account_id
 from services.prompt_manager import prompt_manager
@@ -19,12 +20,16 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/admin", tags=["管理"])
 
 
-def _check_admin_key(admin_key: str) -> None:
-    """校验管理员密钥"""
+async def _get_admin_key(authorization: Optional[str]) -> str:
+    """从 Authorization Header 提取并校验管理员密钥"""
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="未提供管理员密钥，请使用 Authorization: Bearer <key>")
+    admin_key = authorization[7:]
     if not settings.ADMIN_SECRET_KEY:
         raise HTTPException(status_code=500, detail="管理密钥未配置")
     if admin_key != settings.ADMIN_SECRET_KEY:
         raise HTTPException(status_code=403, detail="无权限")
+    return admin_key
 
 
 @router.post(
@@ -32,14 +37,18 @@ def _check_admin_key(admin_key: str) -> None:
     summary="切换推广账号",
     description="切换当前推广的公众号，建议在凌晨 2:00-4:00 操作",
 )
-async def switch_account(request: SwitchAccountRequest, req: Request):
+async def switch_account(
+    request: SwitchAccountRequest,
+    req: Request,
+    authorization: Optional[str] = Header(default=None),
+):
     """
     切换当前推广的公众号
 
     建议操作时间：凌晨低峰期
     原因：避免用户正在关注旧号，弹窗突然变成新号的情况
     """
-    _check_admin_key(request.admin_key)
+    await _get_admin_key(authorization)
 
     pool = settings.get_account_pool()
     pool_ids = [acc["id"] for acc in pool]
@@ -72,9 +81,12 @@ async def switch_account(request: SwitchAccountRequest, req: Request):
     summary="引流数据统计",
     description="查看各公众号的引流数据，帮助决定何时切换推广目标",
 )
-async def account_stats(admin_key: str, request: Request):
+async def account_stats(
+    request: Request,
+    authorization: Optional[str] = Header(default=None),
+):
     """各公众号验证通过的用户数统计"""
-    _check_admin_key(admin_key)
+    await _get_admin_key(authorization)
 
     redis_client = getattr(request.app.state, "redis", None)
     pool = settings.get_account_pool()
@@ -102,9 +114,12 @@ async def account_stats(admin_key: str, request: Request):
     summary="切换 Prompt 版本",
     description="切换当前使用的排版 Prompt 版本",
 )
-async def switch_prompt(request: SwitchPromptRequest):
+async def switch_prompt(
+    request: SwitchPromptRequest,
+    authorization: Optional[str] = Header(default=None),
+):
     """切换 Prompt 激活版本"""
-    _check_admin_key(request.admin_key)
+    await _get_admin_key(authorization)
 
     try:
         old_version = prompt_manager.switch_version(request.version)
@@ -125,9 +140,11 @@ async def switch_prompt(request: SwitchPromptRequest):
     summary="列出 Prompt 版本",
     description="列出所有可用的 Prompt 版本",
 )
-async def list_prompt_versions(admin_key: str):
+async def list_prompt_versions(
+    authorization: Optional[str] = Header(default=None),
+):
     """列出所有 Prompt 版本及当前激活版本"""
-    _check_admin_key(admin_key)
+    await _get_admin_key(authorization)
 
     versions = prompt_manager.list_versions()
     config = prompt_manager._load_config()
