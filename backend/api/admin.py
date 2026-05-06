@@ -20,16 +20,27 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/admin", tags=["管理"])
 
 
-async def _get_admin_key(authorization: Optional[str]) -> str:
-    """从 Authorization Header 提取并校验管理员密钥"""
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="未提供管理员密钥，请使用 Authorization: Bearer <key>")
-    admin_key = authorization[7:]
+async def _check_admin_key(
+    authorization: Optional[str] = None,
+    admin_key: Optional[str] = None,
+) -> None:
+    """校验管理员密钥，兼容两种方式：
+    1. Authorization: Bearer <key>（推荐，安全）
+    2. admin_key 参数（兼容旧前端，后续迁移后移除）
+    """
+    # 优先使用 Header
+    key = None
+    if authorization and authorization.startswith("Bearer "):
+        key = authorization[7:]
+    elif admin_key:
+        key = admin_key
+
+    if not key:
+        raise HTTPException(status_code=401, detail="未提供管理员密钥")
     if not settings.ADMIN_SECRET_KEY:
         raise HTTPException(status_code=500, detail="管理密钥未配置")
-    if admin_key != settings.ADMIN_SECRET_KEY:
+    if key != settings.ADMIN_SECRET_KEY:
         raise HTTPException(status_code=403, detail="无权限")
-    return admin_key
 
 
 @router.post(
@@ -48,7 +59,7 @@ async def switch_account(
     建议操作时间：凌晨低峰期
     原因：避免用户正在关注旧号，弹窗突然变成新号的情况
     """
-    await _get_admin_key(authorization)
+    await _check_admin_key(authorization, request.admin_key)
 
     pool = settings.get_account_pool()
     pool_ids = [acc["id"] for acc in pool]
@@ -83,10 +94,11 @@ async def switch_account(
 )
 async def account_stats(
     request: Request,
+    admin_key: Optional[str] = None,
     authorization: Optional[str] = Header(default=None),
 ):
     """各公众号验证通过的用户数统计"""
-    await _get_admin_key(authorization)
+    await _check_admin_key(authorization, admin_key)
 
     redis_client = getattr(request.app.state, "redis", None)
     pool = settings.get_account_pool()
@@ -119,7 +131,7 @@ async def switch_prompt(
     authorization: Optional[str] = Header(default=None),
 ):
     """切换 Prompt 激活版本"""
-    await _get_admin_key(authorization)
+    await _check_admin_key(authorization, request.admin_key)
 
     try:
         old_version = prompt_manager.switch_version(request.version)
@@ -141,10 +153,11 @@ async def switch_prompt(
     description="列出所有可用的 Prompt 版本",
 )
 async def list_prompt_versions(
+    admin_key: Optional[str] = None,
     authorization: Optional[str] = Header(default=None),
 ):
     """列出所有 Prompt 版本及当前激活版本"""
-    await _get_admin_key(authorization)
+    await _check_admin_key(authorization, admin_key)
 
     versions = prompt_manager.list_versions()
     config = prompt_manager._load_config()
