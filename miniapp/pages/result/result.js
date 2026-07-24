@@ -94,7 +94,13 @@ Page({
         fullHtml: result.html || '',
       })
 
-      this._layoutContent = content
+      // 保存排版内容，用于主题切换和细节调整时重新渲染
+      // AI 模式用处理后的 Markdown，快速模式用原始内容
+      if (mode === 'ai' && result.markdown) {
+        this._layoutContent = result.markdown
+      } else {
+        this._layoutContent = content
+      }
     } catch (err) {
       this._stopProgressAnimation()
       this.setData({ loading: false })

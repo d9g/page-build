@@ -107,7 +107,28 @@ class WechatRenderer(mistune.HTMLRenderer):
         )
 
     def block_quote(self, text: str) -> str:
-        """引用块"""
+        """引用块 — 检测金句标注（> 💡）应用专属样式"""
+        # 检测金句：内部文本以 💡 开头
+        is_golden = False
+        if '💡' in text:
+            # 检测 <p> 标签内开头有 💡 的情况
+            if re.search(r'<p[^>]*>\s*💡', text):
+                is_golden = True
+                # 去掉 💡 标记（加上可能的空格）
+                text = re.sub(r'(<p[^>]*>\s*)💡\s*', r'\1', text)
+
+        if is_golden:
+            style = self._resolve("goldenQuote")
+            cfg = self._cfg("goldenQuote")
+            preset_id = cfg.get("preset", "leftbar-glow")
+            preset = get_preset("goldenQuote", preset_id)
+            prefix = preset.get("prefix", "")
+            suffix = preset.get("suffix", "")
+            # 去掉内层 <p> 的 text-indent
+            inner = text.replace("text-indent:2em;", "text-indent:0;")
+            return f'<section style="{style}">{prefix}{inner}{suffix}</section>\n'
+
+        # 普通引用
         style = self._resolve("blockquote")
         # 去掉内层 <p> 的 text-indent（引用内不需要缩进）
         inner = text.replace("text-indent:2em;", "text-indent:0;")

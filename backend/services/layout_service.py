@@ -115,6 +115,15 @@ def clean_markdown_output(ai_text: str) -> str:
             text = text[first_newline + 1:]
     if text.endswith("```"):
         text = text[:-3]
+    text = text.strip()
+
+    # 检测并清理大量重复引号序列（glm-4-flash 模型退化问题）
+    # 连续6个以上引号视为垃圾内容
+    if re.search(r'"{6,}', text):
+        # 替换连续引号序列为空格，保留正常短引用
+        text = re.sub(r'"{6,}', ' ', text)
+        logger.warning(f"检测到 AI 返回的引号序列，已清理")
+
     return text.strip()
 
 
@@ -182,10 +191,10 @@ async def do_layout(content: str, theme_id: str = "shujuan") -> dict:
                 model=model,
                 provider=provider,
             ),
-            timeout=60.0,
+            timeout=120.0,
         )
     except asyncio.TimeoutError:
-        logger.error("AI 排版超时（60秒）")
+        logger.error("AI 排版超时（120秒）")
         raise RuntimeError("排版超时，请稍后重试或缩短文章内容")
 
     ai_text = extract_content(response)
@@ -195,6 +204,16 @@ async def do_layout(content: str, theme_id: str = "shujuan") -> dict:
     _save_debug_log(content, ai_text, "01_ai_raw")
 
     markdown_text = clean_markdown_output(ai_text)
+
+    # 内容质量检查：清理后字数少于输入的 20% 视为 AI 生成失败
+    if len(markdown_text) < len(content) * 0.2:
+        logger.warning(
+            f"AI 返回内容过短（{len(markdown_text)} < {int(len(content) * 0.2)}），“"
+            f"可能是 glm-4-flash 模型退化导致，请稍后重试"
+        )
+        raise RuntimeError(
+            f"生成内容异常（字数过少），请稍后重试"
+        )
 
     # Markdown 后处理（保留原文内容，只清理格式）
     markdown_text = process_markdown(markdown_text, preserve_content=True)
@@ -217,6 +236,7 @@ async def do_layout(content: str, theme_id: str = "shujuan") -> dict:
     return {
         "sections": [],
         "html": html,
+        "markdown": markdown_text,
         "suggested_theme": theme_id,
         "word_count": len(content),
         "process_time": process_time_str,

@@ -75,6 +75,7 @@ async def quick_layout(
         return LayoutResponse(
             sections=[],
             html=result["html"],
+            markdown="",
             suggested_theme=result["suggested_theme"],
             word_count=result["word_count"],
             process_time=result["process_time"],
@@ -150,6 +151,7 @@ async def layout(
         return LayoutResponse(
             sections=[],
             html=result["html"],
+            markdown=result.get("markdown", ""),
             suggested_theme=result["suggested_theme"],
             word_count=result["word_count"],
             process_time=result["process_time"],

@@ -391,6 +391,31 @@ PRESETS: dict[str, dict[str, dict]] = {
         },
     },
 
+    # ============ 金句引用 ===========
+    "goldenQuote": {
+        "leftbar-glow": {
+            "name": "左竖条+柔底",
+            "style": "border-left:4px solid {c};padding:14px 18px;margin:20px 0;color:{tc};font-size:{fs}px;line-height:1.85;background:{cbg};border-radius:0 8px 8px 0;",
+        },
+        "card-accent": {
+            "name": "品牌色卡片",
+            "style": "padding:16px 20px;margin:20px 0;color:{tc};font-size:{fs}px;line-height:1.85;background:{cbg};border-radius:10px;border:1px solid {c};",
+        },
+        "quote-mark": {
+            "name": "引号装饰",
+            "style": "padding:14px 20px 14px 28px;margin:20px 0;color:{tc};font-size:{fs}px;line-height:1.85;background:{cbg};border-radius:8px;",
+            "prefix": "❝ ",
+        },
+        "center-italic": {
+            "name": "居中楷体",
+            "style": "padding:16px 24px;margin:24px 40px;color:{c};font-size:{fs}px;line-height:1.9;text-align:center;font-weight:600;border-top:1px solid {c};border-bottom:1px solid {c};",
+        },
+        "highlight-bar": {
+            "name": "色块底条",
+            "style": "padding:14px 18px;margin:20px 0;color:{tc};font-size:{fs}px;line-height:1.85;background:linear-gradient(135deg,{cbg} 0%,transparent 100%);border-radius:8px;border-left:4px solid {c};",
+        },
+    },
+
     # ============ 表格 ============
     "table": {
         "plain": {

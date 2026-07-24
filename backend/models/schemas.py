@@ -27,6 +27,7 @@ class LayoutResponse(BaseModel):
     """AI 排版响应"""
     sections: list[LayoutSection] = Field(default=[], description="结构化排版区块（v3.0 已弃用，保留兼容）")
     html: str = Field(..., description="完整 HTML（可直接复制到公众号）")
+    markdown: str = Field(default="", description="AI 处理后的 Markdown（用于主题切换重新渲染）")
     suggested_theme: str = Field(default="default", description="AI 推荐的主题")
     word_count: int = Field(..., description="原文字数")
     process_time: str = Field(..., description="处理耗时")

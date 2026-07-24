@@ -29,8 +29,8 @@ PROVIDER_REGISTRY = {
     },
     "dashscope": {
         "name": "阿里百炼",
-        # Coding Plan 专属 Base URL（sk-sp-xxxxx Key 必须用这个）
-        # 通用按量付费 URL：https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions
+        # 通用按量付费 URL（支持 qwen3.7-plus 等所有模型）
+        # 如果 key 以 sk-sp- 开头，需要用 Coding Plan 专属 URL
         "api_url": "https://coding.dashscope.aliyuncs.com/v1/chat/completions",
         "api_key_env": "DASHSCOPE_API_KEY",
     },
@@ -111,7 +111,7 @@ async def call_ai_model(
     # 可重试的 HTTP 状态码
     RETRYABLE_STATUS = {429, 500, 502, 503}
 
-    timeout = httpx.Timeout(60.0, connect=10.0, read=50.0)
+    timeout = httpx.Timeout(180.0, connect=15.0, read=150.0, write=30.0, pool=15.0)
     async with httpx.AsyncClient(timeout=timeout) as client:
         last_exception = None
         for attempt in range(max_retries + 1):

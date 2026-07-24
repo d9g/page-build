@@ -17,6 +17,7 @@
   "h4": { "preset": "plain", "color": "#1E293B", "fontSize": 16 },
   "p":  { "preset": "normal", "color": "#1E293B", "fontSize": 16, "lineHeight": 1.8, "letterSpacing": 0.2 },
   "blockquote": { "preset": "notice", "textColor": "#334155", "bgColor": "#EFF6FF", "fontSize": 15 },
+  "goldenQuote": { "preset": "card-accent", "color": "#2563EB", "textColor": "#1E293B", "bgColor": "#EFF6FF", "fontSize": 16 },
   "pre": { "preset": "github-light" },
   "code": { "preset": "pill-soft", "color": "#2563EB", "bgColor": "#DBEAFE" },
   "ul": { "preset": "arrow", "color": "#2563EB" },

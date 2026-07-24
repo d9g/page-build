@@ -17,6 +17,7 @@
   "h4": { "preset": "plain", "color": "#7F1D1D", "fontSize": 16 },
   "p":  { "preset": "normal", "color": "#5C0F0F", "fontSize": 16, "lineHeight": 1.85, "letterSpacing": 0.3 },
   "blockquote": { "preset": "leftbar-bg", "textColor": "#7F1D1D", "bgColor": "#FEF2F2", "fontSize": 15 },
+  "goldenQuote": { "preset": "quote-mark", "color": "#C41E3A", "textColor": "#5C0F0F", "bgColor": "#FEF2F2", "fontSize": 16 },
   "pre": { "preset": "warm-paper" },
   "code": { "preset": "pill-soft", "color": "#C41E3A", "bgColor": "#FCE8E8" },
   "ul": { "preset": "diamond", "color": "#C41E3A" },
