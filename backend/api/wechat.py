@@ -6,8 +6,10 @@ GET  /api/v1/wechat/callback/{account_id} — 微信服务器验证
 
 所有公众号共用同一个后端，通过 URL 路径参数 account_id 区分
 """
+import asyncio
 import logging
 import os
+import re
 from fastapi import APIRouter, Request, HTTPException, Query
 from fastapi.responses import PlainTextResponse
 from services.wechat_service import (
@@ -18,6 +20,8 @@ from services.wechat_service import (
     validate_message_body,
 )
 from services.verify_service import generate_verify_code
+from services.stock_task_service import create_task
+from services.stock_evaluator import evaluate_stock_async
 from config import settings
 
 logger = logging.getLogger(__name__)
@@ -128,6 +132,33 @@ async def wechat_callback(account_id: str, request: Request):
             f"打开漫画生成器，输入此使用码即可免费使用！",
         )
         return reply
+
+    # NOTE: 股票代码查询（6位A股代码 → 异步评估 → 返回结果页链接）
+    # 粉丝发送 002218 / 600519 等 → 生成task → 秒回链接 → 后台异步调bidding评估
+    if msg.msg_type == "text" and re.match(r'^[03689]\d{5}$', content):
+        redis_client = getattr(request.app.state, "redis", None)
+        task_id = await create_task(
+            stock_code=content,
+            openid=msg.from_user,
+            msg_id=msg.msg_id,
+            redis_client=redis_client,
+        )
+        if task_id:
+            # 异步触发评估（不阻塞 5 秒同步响应）
+            asyncio.create_task(
+                evaluate_stock_async(task_id, content, redis_client)
+            )
+            result_url = f"https://{settings.DOMAIN}/stock/{task_id}"
+            reply = build_text_reply(
+                msg,
+                f"📈 正在分析 {content} 的 AI 评分\n\n"
+                f"点击查看结果（约10秒）：\n{result_url}\n\n"
+                f"数据仅供参考，不构成投资建议",
+            )
+            logger.info(f"股票查询任务已派发 | stock={content} | task_id={task_id} | openid={msg.from_user[:8]}...")
+            return reply
+        else:
+            return build_text_reply(msg, "系统繁忙，请稍后重试")
 
     # 处理关注事件：推送欢迎语
     if msg.msg_type == "event" and msg.event.lower() == "subscribe":

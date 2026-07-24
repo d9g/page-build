@@ -58,6 +58,15 @@ class Settings:
     VERIFY_CODE_EXPIRE_SECONDS: int = 300
     VERIFY_KEYWORD: str = "排版"
 
+    # ===== 股票查询（公众号异步链接方案）=====
+    # bidding-tool 内部接口地址（同机部署用 127.0.0.1，跨机用 https://bidding.d9g.com.cn）
+    BIDDING_INTERNAL_URL: str = os.getenv(
+        "BIDDING_INTERNAL_URL",
+        "http://127.0.0.1:8600/api/internal/ai-eval/run",
+    )
+    # 异步任务过期时间（默认 24 小时）
+    STOCK_TASK_TTL_SECONDS: int = int(os.getenv("STOCK_TASK_TTL_SECONDS", "86400"))
+
     # ===== 路径 =====
     PROMPTS_DIR: Path = BASE_DIR / "prompts"
     STATIC_DIR: Path = BASE_DIR / "static"

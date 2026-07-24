@@ -110,6 +110,7 @@ from api.auth import router as auth_router
 from api.verify import router as verify_router
 from api.accounts import router as accounts_router
 from api.wechat import router as wechat_router
+from api.stock import router as stock_router
 from api.admin import router as admin_router
 
 app.include_router(layout_router)
@@ -118,6 +119,7 @@ app.include_router(auth_router)
 app.include_router(verify_router)
 app.include_router(accounts_router)
 app.include_router(wechat_router)
+app.include_router(stock_router)
 app.include_router(admin_router)
 
 
