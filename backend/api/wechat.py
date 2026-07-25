@@ -48,18 +48,31 @@ DAILY_QUERY_LIMIT = 10
 
 
 # ============ Redis 限流 (per openid, 按天) ============
+# 老杨 2026-07-25 拍板 (B-2 P2-1 修复): 用 Lua 脚本原子做 "首次 SET NX EX + INCR",
+# 避免原 INCR + EXPIRE 在 pipeline 里 EXPIRE 失败导致 key 永不过期的内存泄漏。
+_RATE_LIMIT_LUA = """
+local key = KEYS[1]
+local ttl = tonumber(ARGV[1])
+-- 首次新建 key 带 TTL (NX + EX) - 原子设置过期
+local exists = redis.call('EXISTS', key)
+if exists == 0 then
+    redis.call('SET', key, 0, 'EX', ttl)
+end
+local count = redis.call('INCR', key)
+return count
+"""
+
+
 async def _check_and_incr_rate_async(openid: str, redis_client, daily_limit: int = DAILY_QUERY_LIMIT) -> bool:
     if not redis_client:
         return True
     from datetime import datetime
     today = datetime.now().strftime("%Y%m%d")
     key = f"aiscore:rate:{today}:{openid}"
+    ttl = 86400 + 60  # 24h 多 60s buffer 跨越当天
     try:
-        pipe = redis_client.pipeline()
-        pipe.incr(key)
-        pipe.expire(key, 86400 + 60)
-        result = await pipe.execute()
-        count = result[0]
+        # B-2 P2-1: 改用 Lua 脚本一次性 INIT (SET NX) + INCR, 保证 TTL 总生效
+        count = await redis_client.eval(_RATE_LIMIT_LUA, 1, key, ttl)
         return int(count) <= daily_limit
     except Exception as e:
         # 老杨 2026-07-25 拍板 (B-2 P1-3 修复): 异常时升级到 error 级别告警 (fail-open 仍保持业务可用性优先级)
@@ -189,12 +202,17 @@ async def wechat_callback(account_id: str, request: Request):
                 check_data = check_resp.json()
                 if not check_data.get("valid"):
                     return build_text_reply(msg, check_data.get("reason") or "该股票不支持 AI 评分")
-        except Exception as e:
+        except (httpx.HTTPError, json.JSONDecodeError) as e:
             # 老杨 2026-07-25 拍板 (B-2 P1-2 修复): 限缩异常范围 + 升级到 error 告警
             # 原因: 原代码 bare Exception 吞掉几乎所有异常, 继续降级到 run 绕过股票代码校验,
             #       架构上多一层防御没了, 且异常路径对监控不可见
+            # 限缩到网络错误 (httpx) + JSON 解析错误, 不裸吃 Exception
             logger.error(f"[wechat] check 调用失败: {e}", exc_info=True)
             # 降级: 直接调 run, 让 bidding-tool 那边自己校验 (业务可用性优先)
+        except Exception as e:
+            # 兜底: 其它代码错误 (如 build_text_reply 出错) 不静默吞
+            logger.exception(f"[wechat] check 路径未预期异常: {e}")
+            return build_text_reply(msg, "系统繁忙，请稍后重试")
 
         # 3. 调 bidding-tool 拿 task_id (异步, 1 秒内返)
         try:

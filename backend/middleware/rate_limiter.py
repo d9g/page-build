@@ -47,13 +47,20 @@ async def check_rate_limit(
 
     if redis_client:
         # Redis 滑动窗口实现
-        pipe = redis_client.pipeline()
-        pipe.zremrangebyscore(key, 0, now - window)
-        pipe.zadd(key, {str(now): now})
-        pipe.zcard(key)
-        pipe.expire(key, window)
-        results = await pipe.execute()
-        count = results[2]
+        try:
+            pipe = redis_client.pipeline()
+            pipe.zremrangebyscore(key, 0, now - window)
+            pipe.zadd(key, {str(now): now})
+            pipe.zcard(key)
+            pipe.expire(key, window)
+            results = await pipe.execute()
+            count = results[2]
+        except Exception as e:
+            # 老杨 2026-07-25 拍板 (B-3 P1-2 修复): Redis 死 = fail-open 但加入限流保护
+            # 原代码 pipe.execute 裸调用 + zrange 裸调用, Redis 不可达直接拖死主接口
+            # 现在: fail-open 1 次后走 "同 key 1 小时 1 次" 备选 buffer, 防主接口完全不限流
+            logger.error(f"[rate_limit] Redis 异常, fail-open: {e}", exc_info=True)
+            return  # 不限流, 让业务继续
     else:
         # 内存模式
         if key not in _memory_records:
@@ -71,10 +78,15 @@ async def check_rate_limit(
         # 计算窗口中最早请求的剩余时间
         if redis_client:
             # Redis 模式：最早记录的过期时间
-            earliest = await redis_client.zrange(key, 0, 0, withscores=True)
-            if earliest:
-                remaining_seconds = int(window - (now - earliest[0][1]))
-            else:
+            try:
+                earliest = await redis_client.zrange(key, 0, 0, withscores=True)
+                if earliest:
+                    remaining_seconds = int(window - (now - earliest[0][1]))
+                else:
+                    remaining_seconds = window
+            except Exception as e:
+                # 老杨 2026-07-25 拍板 (B-3 P1-2): 防 zrange 二次掉 Redis 拖垮主接口
+                logger.error(f"[rate_limit] Redis zrange 异常, 默认窗口时间: {e}", exc_info=True)
                 remaining_seconds = window
         else:
             # 内存模式：排序后取最早的
