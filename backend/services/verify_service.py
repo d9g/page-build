@@ -4,7 +4,7 @@
 验证码生成、校验、过期管理
 """
 import json
-import random
+import secrets
 import logging
 from typing import Optional
 from config import settings
@@ -27,7 +27,9 @@ async def generate_verify_code(
     value: {"account_id": "xxx", "gzh_openid": "xxx"}
     有效期: 5 分钟
     """
-    code = str(random.randint(1000, 9999))
+    # 老杨 2026-07-25 拍板 (B-2 P2-2 修复): 从 random.randint 改 secrets.randbelow
+    # 原因: random.randint 用 Mersenne Twister 非密码学安全, 用 secrets 保证不可预测
+    code = str(secrets.randbelow(10_000)).zfill(4)
 
     data = json.dumps({
         "account_id": account_id,

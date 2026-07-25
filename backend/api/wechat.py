@@ -62,7 +62,9 @@ async def _check_and_incr_rate_async(openid: str, redis_client, daily_limit: int
         count = result[0]
         return int(count) <= daily_limit
     except Exception as e:
-        logger.warning(f"[wechat] 限流检查异常: {e}")
+        # 老杨 2026-07-25 拍板 (B-2 P1-3 修复): 异常时升级到 error 级别告警 (fail-open 仍保持业务可用性优先级)
+        # 原因: 原代码 logger.warning, 限流异常应该在监控里亮起来
+        logger.error(f"[wechat] 限流检查异常 fail-open: {e}", exc_info=True)
         return True
 
 
@@ -108,8 +110,14 @@ async def wechat_callback(account_id: str, request: Request):
     timestamp = request.query_params.get("timestamp", "")
     nonce = request.query_params.get("nonce", "")
     token = account.get("token", "")
-    if token and not verify_wechat_signature(signature, timestamp, nonce, token):
-        logger.warning(f"消息签名验证失败 | account={account_id}")
+    # 老杨 2026-07-25 拍板 (B-2 P0-1 修复): token 为空也走校验逻辑
+    # 原因: 原代码 `if token and not verify(...)` 在 token 漏配时短路跳过签名校验,
+    #       未来新增公众号一旦漏配 TOKEN, 任何 POST 都能跳过认证进入业务逻辑。
+    # 现在逻辑: 有 token 必须验签通过, 没 token 直接拒绝
+    if not token or not verify_wechat_signature(signature, timestamp, nonce, token):
+        logger.warning(
+            f"签名验证失败或 token 漏配 | account={account_id} | token_empty={not token}"
+        )
         return "success"
 
     body = await request.body()
@@ -182,8 +190,11 @@ async def wechat_callback(account_id: str, request: Request):
                 if not check_data.get("valid"):
                     return build_text_reply(msg, check_data.get("reason") or "该股票不支持 AI 评分")
         except Exception as e:
-            logger.warning(f"[wechat] check 调用失败: {e}")
-            # 降级: 直接调 run, 让 bidding-tool 那边自己校验
+            # 老杨 2026-07-25 拍板 (B-2 P1-2 修复): 限缩异常范围 + 升级到 error 告警
+            # 原因: 原代码 bare Exception 吞掉几乎所有异常, 继续降级到 run 绕过股票代码校验,
+            #       架构上多一层防御没了, 且异常路径对监控不可见
+            logger.error(f"[wechat] check 调用失败: {e}", exc_info=True)
+            # 降级: 直接调 run, 让 bidding-tool 那边自己校验 (业务可用性优先)
 
         # 3. 调 bidding-tool 拿 task_id (异步, 1 秒内返)
         try:
