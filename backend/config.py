@@ -64,7 +64,14 @@ class Settings:
         "BIDDING_INTERNAL_URL",
         "http://127.0.0.1:8600/api/internal/ai-eval/run",
     )
-    # 异步任务过期时间（默认 24 小时）
+    # check 接口的前缀（仅用于校验股票代码，不创建任务）
+    BIDDING_INTERNAL_URL_BASE: str = os.getenv(
+        "BIDDING_INTERNAL_URL_BASE",
+        "http://127.0.0.1:8600/api/internal",
+    )
+    # aiscore 结果页域名（粉丝点开的链接拼接用，2026-07-25 老杨拍板用 bidding.d9g）
+    AISCORE_DOMAIN: str = os.getenv("AISCORE_DOMAIN", "bidding.d9g.com.cn")
+    # 异步任务过期时间（默认 24 小时）-- 兼容旧变量，bidding-tool 自己算 30 分钟
     STOCK_TASK_TTL_SECONDS: int = int(os.getenv("STOCK_TASK_TTL_SECONDS", "86400"))
 
     # ===== 路径 =====
