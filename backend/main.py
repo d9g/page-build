@@ -132,6 +132,7 @@ from api.wechat import router as wechat_router
 from api.stock import router as stock_router
 from api.admin import router as admin_router
 from api.printer_verify import router as printer_verify_router
+from api.printer_pdf import router as printer_pdf_router
 
 app.include_router(layout_router)
 app.include_router(themes_router)
@@ -142,6 +143,7 @@ app.include_router(wechat_router)
 app.include_router(stock_router)
 app.include_router(admin_router)
 app.include_router(printer_verify_router)
+app.include_router(printer_pdf_router)
 
 
 # ===== 健康检查 =====
