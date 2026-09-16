@@ -125,7 +125,7 @@ async def generate_print_code(
     - 不过期写入永久验证状态（text-print 端每次调用都校验新鲜代码）
 
     Args:
-        account_id: 公众号 ID（如 <ACCOUNT_A_ID>）
+        account_id: 公众号 ID（从 .env 的 ACCOUNT_X_ID 读入）
         gzh_openid: 粉丝 openid
         redis_client: Redis 异步客户端（可选，None 则走内存降级）
 
