@@ -6,8 +6,14 @@ GET  /api/v1/wechat/callback/{account_id} — 微信服务器验证
 
 按 account_id 路由关键字规则 (2026-07-25 老杨拍板):
 - 半盏茶说书 (B) → 只响应股票代码 → 调 bidding-tool 拿 task_id → 拼 bidding.d9g 链接
-- 居家小能手小羊 (A) → 排版/激活
+- 居家小能手小羊 (A) → 排版/激活/打印
 - 老杨讲理 (C) + 其他号 → 不响应 (return "success")
+
+2026-09-16 增补:
+- 公众号 A 名称「居家小能手小羊」同步改为「居家能手小羊」（与 tools.webyoung.cn footerTip 文案对齐）
+- 新增 print capability：粉丝发送「打印」时生成 4 位数字验证码，供
+  tools.webyoung.cn/text-print 验证激活使用。
+- 流程闭环：wechat.py 生成 → verify_service 存储 → /api/printer/verify 校验。
 """
 import asyncio
 import logging
@@ -24,7 +30,7 @@ from services.wechat_service import (
     get_account_config,
     validate_message_body,
 )
-from services.verify_service import generate_verify_code
+from services.verify_service import generate_verify_code, generate_print_code
 from config import settings
 
 logger = logging.getLogger(__name__)
@@ -36,7 +42,7 @@ router = APIRouter(prefix="/api/v1/wechat", tags=["微信回调"])
 # value = 该号能响应的关键字集合 (stock_code / format / activate)
 ACCOUNT_CAPABILITIES = {
     "半盏茶说书": {"stock_code"},   # 只响应股票代码
-    "居家小能手小羊": {"format", "activate"},  # 排版/激活
+    "居家能手小羊": {"format", "activate", "print"},  # 排版/激活/打印验证码
     # "老杨讲理" + 其他号 → 不在表里 → 全部不响应
 }
 
@@ -180,6 +186,24 @@ async def wechat_callback(account_id: str, request: Request):
             )
             return reply
 
+    # ============ 打印验证码 (print) ============
+    # 公众号收到粉丝「打印」 → 生成 4 位数字验证码
+    # tools.webyoung.cn/text-print 在用户输入验证码后调用 /api/printer/verify 校验
+    if "print" in capabilities and content == settings.PRINT_KEYWORD:
+        code = await generate_print_code(
+            account_id=account_id,
+            gzh_openid=msg.from_user,
+            redis_client=redis_client,
+        )
+        logger.info(f"打印验证码已下发 | account={account_id} | openid={msg.from_user[:8]}... | code={code}")
+        reply = build_text_reply(
+            msg,
+            f"您的验证码：{code}\n"
+            f"有效期 5 分钟\n"
+            f"请在文字打印工具中输入此验证码",
+        )
+        return reply
+
     # ============ 股票代码 (stock_code) ============
     if "stock_code" in capabilities and STOCK_CODE_PATTERN.match(content):
         openid = msg.from_user
@@ -254,6 +278,8 @@ async def wechat_callback(account_id: str, request: Request):
         if "activate" in capabilities:
             comic_kw = os.environ.get("COMIC_VERIFY_KEYWORD", "激活")
             welcome_lines.append(f"回复「{comic_kw}」获取漫画生成使用码")
+        if "print" in capabilities:
+            welcome_lines.append(f"回复「{settings.PRINT_KEYWORD}」获取打印验证码")
         if "stock_code" in capabilities:
             welcome_lines.append(f"发送 6 位股票代码（如 000021）查询 AI 评分")
         reply = build_text_reply(msg, "\n".join(welcome_lines))

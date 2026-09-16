@@ -111,6 +111,98 @@ async def cleanup_expired_codes():
             logger.info(f"清理过期验证码: {len(expired)} 个")
 
 
+async def generate_print_code(
+    account_id: str,
+    gzh_openid: str,
+    redis_client=None,
+) -> str:
+    """
+    生成 4 位数字验证码（文字打印工具专用）
+
+    与 generate_verify_code 的区别：
+    - Redis key 命名空间独立: verify_code_print:{code}
+      （避免与公众号排版的 verify_code:{code} 冲突）
+    - 不过期写入永久验证状态（text-print 端每次调用都校验新鲜代码）
+
+    Args:
+        account_id: 公众号 ID（如 <ACCOUNT_A_ID>）
+        gzh_openid: 粉丝 openid
+        redis_client: Redis 异步客户端（可选，None 则走内存降级）
+
+    Returns:
+        4 位数字验证码字符串
+    """
+    from config import settings
+
+    code = str(secrets.randbelow(10_000)).zfill(4)
+    data = json.dumps({
+        "account_id": account_id,
+        "gzh_openid": gzh_openid,
+    })
+
+    if redis_client:
+        await redis_client.setex(
+            f"verify_code_print:{code}",
+            settings.PRINT_VERIFY_VALID_SECONDS,
+            data,
+        )
+    else:
+        import time
+        _memory_codes[f"print:{code}"] = {
+            "data": data,
+            "expires_at": time.time() + settings.PRINT_VERIFY_VALID_SECONDS,
+        }
+
+    logger.info(f"打印验证码已生成 | code={code} | account={account_id}")
+    return code
+
+
+async def validate_print_code(
+    code: str,
+    redis_client=None,
+) -> Optional[dict]:
+    """
+    校验打印验证码（文字打印工具专用）
+
+    Args:
+        code: 4 位数字验证码
+        redis_client: Redis 异步客户端
+
+    Returns:
+        {"account_id": "xxx", "gzh_openid": "xxx"} 或 None
+    """
+    if redis_client:
+        data = await redis_client.get(f"verify_code_print:{code}")
+        if not data:
+            return None
+        info = json.loads(data)
+    else:
+        import time
+        entry = _memory_codes.get(f"print:{code}")
+        if not entry:
+            return None
+        if time.time() > entry["expires_at"]:
+            _memory_codes.pop(f"print:{code}", None)
+            return None
+        info = json.loads(entry["data"])
+
+    # 检查 account_id 是否在公众号池内
+    pool = settings.get_account_pool()
+    pool_ids = [acc["id"] for acc in pool]
+    if info["account_id"] not in pool_ids:
+        logger.warning(f"打印验证码 {code} 对应的公众号 {info['account_id']} 不在池内")
+        return None
+
+    # 校验通过后删除验证码（一次性使用）
+    if redis_client:
+        await redis_client.delete(f"verify_code_print:{code}")
+    else:
+        _memory_codes.pop(f"print:{code}", None)
+
+    logger.info(f"打印验证码校验通过 | code={code} | account={info['account_id']}")
+    return info
+
+
 async def get_active_account_id(redis_client=None) -> str:
     """
     获取当前激活推广的公众号 ID

@@ -58,6 +58,14 @@ class Settings:
     VERIFY_CODE_EXPIRE_SECONDS: int = 300
     VERIFY_KEYWORD: str = "排版"
 
+    # ===== 打印工具（文字打印）验证码 =====
+    # 复用 generate_verify_code 的 4 位数字 + 5 分钟过期逻辑，
+    # 但走独立的 Redis 命名空间 verify_code_print:{code}，
+    # 避免与公众号排版验证码冲突。
+    # 公众号回调收到粉丝发送的「打印」时，生成 print 验证码并回复。
+    PRINT_KEYWORD: str = os.getenv("PRINT_KEYWORD", "打印")
+    PRINT_VERIFY_VALID_SECONDS: int = int(os.getenv("PRINT_VERIFY_VALID_SECONDS", "300"))
+
     # ===== 股票查询（公众号异步链接方案）=====
     # bidding-tool 内部接口地址（同机部署用 127.0.0.1，跨机用 https://bidding.d9g.com.cn）
     BIDDING_INTERNAL_URL: str = os.getenv(
