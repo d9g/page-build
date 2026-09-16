@@ -45,3 +45,4 @@ miniapp/miniprogram_npm/
 *.tmp
 *.bak
 公众号*.md
+.venv.bak.*
