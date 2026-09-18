@@ -187,21 +187,35 @@ async def wechat_callback(account_id: str, request: Request):
             return reply
 
     # ============ 打印验证码 (print) ============
-    # 公众号收到粉丝「打印」 → 生成 4 位数字验证码
+    # 公众号收到粉丝「打印」/「print」 → 生成 4 位数字验证码
+    # - 中文关键字「打印」 → 中文回复
+    # - 英文关键字「print」(大小写不敏感) → 英文回复
     # tools.webyoung.cn/text-print 在用户输入验证码后调用 /api/printer/verify 校验
-    if "print" in capabilities and content == settings.PRINT_KEYWORD:
+    if "print" in capabilities and content in (settings.PRINT_KEYWORD, settings.PRINT_KEYWORD.lower()):
+        is_english = content.lower() == "print"
         code = await generate_print_code(
             account_id=account_id,
             gzh_openid=msg.from_user,
             redis_client=redis_client,
         )
-        logger.info(f"打印验证码已下发 | account={account_id} | openid={msg.from_user[:8]}... | code={code}")
-        reply = build_text_reply(
-            msg,
-            f"您的验证码：{code}\n"
-            f"有效期 5 分钟\n"
-            f"请在文字打印工具中输入此验证码",
+        logger.info(
+            f"打印验证码已下发 | account={account_id} | openid={msg.from_user[:8]}... "
+            f"| code={code} | lang={'en' if is_english else 'zh'}"
         )
+        if is_english:
+            reply = build_text_reply(
+                msg,
+                f"Your verification code: {code}\n"
+                f"Valid for 5 minutes\n"
+                f"Please enter this code in the text-print tool",
+            )
+        else:
+            reply = build_text_reply(
+                msg,
+                f"您的验证码：{code}\n"
+                f"有效期 5 分钟\n"
+                f"请在文字打印工具中输入此验证码",
+            )
         return reply
 
     # ============ 股票代码 (stock_code) ============
@@ -279,7 +293,7 @@ async def wechat_callback(account_id: str, request: Request):
             comic_kw = os.environ.get("COMIC_VERIFY_KEYWORD", "激活")
             welcome_lines.append(f"回复「{comic_kw}」获取漫画生成使用码")
         if "print" in capabilities:
-            welcome_lines.append(f"回复「{settings.PRINT_KEYWORD}」获取打印验证码")
+            welcome_lines.append(f"回复「{settings.PRINT_KEYWORD}」或「print」获取打印验证码")
         if "stock_code" in capabilities:
             welcome_lines.append(f"发送 6 位股票代码（如 000021）查询 AI 评分")
         reply = build_text_reply(msg, "\n".join(welcome_lines))
